@@ -431,6 +431,13 @@ async function main() {
     res.json({ success: true, queue_size: queue.length });
   });
 
+  // Reset all assignments for a sheet back to pending
+  app.post('/api/sheets/:id/reset', (req, res) => {
+    dbRun("UPDATE assignments SET call_status = 'pending', call_duration = 0 WHERE sheet_id = ?", [req.params.id]);
+    saveDb();
+    res.json({ success: true });
+  });
+
   app.get('/api/sheets/:id/assignments', (req, res) => {
     res.json(dbAll(`SELECT a.*, l.name as lead_name, l.phone as lead_phone, p.nickname as phone_name
       FROM assignments a JOIN leads l ON a.lead_id = l.id JOIN phones p ON a.phone_id = p.id
