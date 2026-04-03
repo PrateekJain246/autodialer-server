@@ -110,13 +110,41 @@ async function main() {
     const s = {}; rows.forEach(r => s[r.key] = r.value); return s;
   }
 
+  function getSheetsForPhone(phoneId) {
+    const rows = dbAll(`SELECT s.id as sheet_id, s.name as sheet_name, s.uploaded_at,
+      COUNT(a.id) as total,
+      SUM(CASE WHEN a.call_status = 'pending' THEN 1 ELSE 0 END) as pending,
+      SUM(CASE WHEN a.call_status = 'connected' THEN 1 ELSE 0 END) as connected,
+      SUM(CASE WHEN a.call_status = 'no_answer' THEN 1 ELSE 0 END) as no_answer
+      FROM assignments a JOIN sheets s ON a.sheet_id = s.id
+      WHERE a.phone_id = ?
+      GROUP BY s.id
+      ORDER BY s.uploaded_at DESC`, [phoneId]);
+    // Group by date
+    const dateMap = {};
+    for (const row of rows) {
+      const date = row.uploaded_at ? row.uploaded_at.split(' ')[0].split('T')[0] : 'unknown';
+      if (!dateMap[date]) dateMap[date] = { date, items: [] };
+      dateMap[date].items.push(row);
+    }
+    return Object.values(dateMap).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
   function sendQueueToPhone(phoneId) {
     const socketId = phoneConnections.get(phoneId);
     if (!socketId) return;
     const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
       FROM assignments a JOIN leads l ON a.lead_id = l.id
       WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phoneId]);
-    io.to(socketId).emit('server:queue-updated', { queue });
+    const sheets = getSheetsForPhone(phoneId);
+    io.to(socketId).emit('server:queue-updated', { queue, sheets });
+  }
+
+  function sendSheetsUpdatedToPhone(phoneId) {
+    const socketId = phoneConnections.get(phoneId);
+    if (!socketId) return;
+    const sheets = getSheetsForPhone(phoneId);
+    io.to(socketId).emit('server:sheets-updated', { sheets });
   }
 
   function autoAssignSheet(sheetId) {
@@ -138,6 +166,7 @@ async function main() {
     if (assigned > 0) {
       saveDb();
       sendQueueToPhone(phoneId);
+      sendSheetsUpdatedToPhone(phoneId);
       io.emit('server:assignments-changed');
       console.log(`Auto-assigned ${assigned} leads from sheet ${sheetId} to phone ${phoneId}`);
     }
@@ -227,7 +256,10 @@ async function main() {
             phonesAssigned = phoneIds.length;
             saveDb();
             io.emit('server:assignments-changed');
-            for (const pid of phoneIds) sendQueueToPhone(pid);
+            for (const pid of phoneIds) {
+              sendQueueToPhone(pid);
+              sendSheetsUpdatedToPhone(pid);
+            }
             console.log(`Upload-assigned ${totalAssigned} leads from sheet ${sheetId} to ${phoneIds.length} phones`);
           }
         } catch (e) { console.error('Phone assignment parse error:', e); }
@@ -336,7 +368,10 @@ async function main() {
       }
     }
     saveDb(); io.emit('server:assignments-changed');
-    for (const pid of phone_ids) sendQueueToPhone(pid);
+    for (const pid of phone_ids) {
+      sendQueueToPhone(pid);
+      sendSheetsUpdatedToPhone(pid);
+    }
     res.json({ success: true, assigned });
   });
 
@@ -362,6 +397,38 @@ async function main() {
       sheets[q.sheet_name].leads.push(q);
     });
     res.json({ total: queue.length, queue, sheets: Object.values(sheets) });
+  });
+
+  // Phone sheets endpoint
+  app.get('/api/phones/:id/sheets', (req, res) => {
+    const sheets = getSheetsForPhone(req.params.id);
+    res.json({ sheets });
+  });
+
+  // Phone sheet leads endpoint
+  app.get('/api/phones/:id/sheets/:sheetId/leads', (req, res) => {
+    const leads = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
+      FROM assignments a JOIN leads l ON a.lead_id = l.id
+      WHERE a.phone_id = ? AND a.sheet_id = ? AND a.call_status = 'pending'
+      ORDER BY a.id`, [req.params.id, req.params.sheetId]);
+    res.json({ leads });
+  });
+
+  // Dial specific sheet
+  app.post('/api/phones/:id/dial/sheet/:sheetId', (req, res) => {
+    const phoneId = req.params.id;
+    const sheetId = req.params.sheetId;
+    const socketId = phoneConnections.get(phoneId);
+    if (!socketId) return res.status(400).json({ error: 'Phone not connected' });
+    const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
+      FROM assignments a JOIN leads l ON a.lead_id = l.id
+      WHERE a.phone_id = ? AND a.sheet_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phoneId, sheetId]);
+    if (queue.length === 0) return res.status(400).json({ error: 'No pending leads in this sheet' });
+    const settings = getSettings();
+    io.to(socketId).emit('server:dial-start', { queue, settings, sheet_id: sheetId });
+    dbRun("UPDATE phones SET status = 'dialing' WHERE id = ?", [phoneId]);
+    saveDb();
+    res.json({ success: true, queue_size: queue.length });
   });
 
   app.get('/api/sheets/:id/assignments', (req, res) => {
@@ -493,8 +560,9 @@ async function main() {
         FROM assignments a JOIN leads l ON a.lead_id = l.id
         WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phone.id]);
 
+      const sheets = getSheetsForPhone(phone.id);
       socket.emit('server:reconnect-success', {
-        phone_id: phone.id, nickname: phone.nickname, settings, queue
+        phone_id: phone.id, nickname: phone.nickname, settings, queue, sheets
       });
       io.emit('server:phone-status-changed', { phoneId: phone.id, status: 'online' });
       console.log(`Phone reconnected: ${phone.nickname} (${phone.id})`);
@@ -517,6 +585,7 @@ async function main() {
       io.emit('server:call-update', {
         assignment_id: data.assignment_id, phone_id: phoneId,
         status: data.status, duration: data.duration || 0 });
+      sendSheetsUpdatedToPhone(phoneId);
     });
 
     socket.on('phone:add-note', (data) => {

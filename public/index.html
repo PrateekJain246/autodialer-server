@@ -93,7 +93,6 @@ function App() {
     { id: 'phones', label: 'Phones' },
     { id: 'assign', label: 'Assign Leads' },
     { id: 'calllog', label: 'Call Log' },
-    { id: 'settings', label: 'Settings' },
   ];
 
   return (<div>
@@ -111,7 +110,6 @@ function App() {
       {tab==='phones' && <PhonesTab />}
       {tab==='assign' && <AssignTab />}
       {tab==='calllog' && <CallLogTab />}
-      {tab==='settings' && <SettingsTab />}
     </div>
   </div>);
 }
@@ -149,10 +147,6 @@ function DashboardTab() {
   }, []);
 
   const s = data.stats;
-  const dialAction = async (phoneId, action) => {
-    await fetch(`/api/phones/${phoneId}/dial/${action}`, { method: 'POST' });
-    load();
-  };
 
   return (<div>
     <div className="stats-grid">
@@ -179,12 +173,6 @@ function DashboardTab() {
             <div className="info">{done} / {total} calls</div>
             <div className="progress-bar"><div className="fill" style={{width:`${total?done/total*100:0}%`}}/></div>
           </div>}
-          <div className="controls">
-            {(!p.dialer_running && p.connected) && <button className="btn-success btn-sm" onClick={()=>dialAction(p.id,'start')}>Start</button>}
-            {(p.dialer_running && !p.dialer_paused) && <button className="btn-warning btn-sm" onClick={()=>dialAction(p.id,'pause')}>Pause</button>}
-            {(p.dialer_running && p.dialer_paused) && <button className="btn-success btn-sm" onClick={()=>dialAction(p.id,'resume')}>Resume</button>}
-            {p.dialer_running && <button className="btn-danger btn-sm" onClick={()=>dialAction(p.id,'stop')}>Stop</button>}
-          </div>
         </div>);
       })}
       {data.phones.length === 0 && <p style={{color:'#94a3b8'}}>No phones registered. Go to Phones tab to add one.</p>}
@@ -201,9 +189,28 @@ function SheetsTab() {
   const [dragging, setDragging] = useState(false);
   const [selectedPhones, setSelectedPhones] = useState([]);
   const [distMode, setDistMode] = useState('round-robin');
+  const [sheetPhones, setSheetPhones] = useState({});
   const fileRef = useRef();
 
-  const load = async () => { const r = await fetch('/api/sheets'); setSheets(await r.json()); };
+  const loadSheetAssignments = async (sheetList) => {
+    const map = {};
+    await Promise.all(sheetList.map(async (s) => {
+      try {
+        const r = await fetch(`/api/sheets/${s.id}/assignments`);
+        const rows = await r.json();
+        const uniqueNames = [...new Set(rows.map(a => a.phone_name).filter(Boolean))];
+        map[s.id] = uniqueNames;
+      } catch(e) { map[s.id] = []; }
+    }));
+    setSheetPhones(map);
+  };
+
+  const load = async () => {
+    const r = await fetch('/api/sheets');
+    const data = await r.json();
+    setSheets(data);
+    loadSheetAssignments(data);
+  };
   const loadPhones = async () => { const r = await fetch('/api/phones'); setPhones(await r.json()); };
   useEffect(() => { load(); loadPhones(); }, []);
 
@@ -293,9 +300,12 @@ function SheetsTab() {
     <div className="card">
       <h2>Uploaded Sheets</h2>
       {sheets.length === 0 ? <p className="info">No sheets uploaded yet</p> :
-      <table><thead><tr><th>Name</th><th>Leads</th><th>Uploaded</th><th>Actions</th></tr></thead>
+      <table><thead><tr><th>Name</th><th>Leads</th><th>Assigned To</th><th>Uploaded</th><th>Actions</th></tr></thead>
       <tbody>{sheets.map(s => <tr key={s.id}>
         <td>{s.name}</td><td>{s.row_count}</td>
+        <td>{(sheetPhones[s.id] || []).length > 0
+          ? sheetPhones[s.id].map(name => <span key={name} className="badge badge-online" style={{marginRight:4,marginBottom:2}}>{name}</span>)
+          : <span className="info">Unassigned</span>}</td>
         <td>{new Date(s.uploaded_at).toLocaleString()}</td>
         <td><div className="flex">
           <button className="btn-secondary btn-sm" onClick={()=>showPreview(s.id)}>Preview</button>
@@ -485,62 +495,6 @@ function CallLogTab() {
         <td className="info">{a.notes || '-'}</td>
       </tr>)}</tbody></table>
       {assignments.length === 0 && <p className="info" style={{textAlign:'center',padding:20}}>No assignments yet</p>}
-    </div>
-  </div>);
-}
-
-function SettingsTab() {
-  const [settings, setSettings] = useState({});
-  const [phones, setPhones] = useState([]);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/settings').then(r=>r.json()).then(setSettings);
-    fetch('/api/phones').then(r=>r.json()).then(setPhones);
-  }, []);
-
-  const save = async () => {
-    await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings) });
-    setSaved(true); setTimeout(()=>setSaved(false), 2000);
-  };
-
-  const update = (key, val) => setSettings(prev => ({...prev, [key]: val}));
-
-  return (<div>
-    <div className="card" style={{maxWidth:500}}>
-      <h2>Dialer Settings</h2>
-      <label>Pre-call Delay (seconds)</label>
-      <input type="number" min="0" max="30" value={settings.pre_call_delay||''} onChange={e=>update('pre_call_delay',e.target.value)} />
-
-      <label>Gap Between Calls (seconds)</label>
-      <input type="number" min="1" max="120" value={settings.call_gap||''} onChange={e=>update('call_gap',e.target.value)} />
-
-      <label>Max Retries</label>
-      <input type="number" min="0" max="10" value={settings.max_retries||''} onChange={e=>update('max_retries',e.target.value)} />
-
-      <label className="check-label mt-8 mb-8">
-        <input type="checkbox" checked={settings.work_hours_enabled==='true'}
-          onChange={e=>update('work_hours_enabled', e.target.checked?'true':'false')} />
-        Enable Working Hours Restriction
-      </label>
-
-      <div className="flex">
-        <div style={{flex:1}}><label>Start</label>
-          <input type="time" value={settings.work_hours_start||'09:00'} onChange={e=>update('work_hours_start',e.target.value)} /></div>
-        <div style={{flex:1}}><label>End</label>
-          <input type="time" value={settings.work_hours_end||'20:00'} onChange={e=>update('work_hours_end',e.target.value)} /></div>
-      </div>
-
-      <h2 className="mt-16">Auto-Assign</h2>
-      <p className="info mb-8">When enabled, uploaded sheets are automatically assigned to the selected phone. No manual assignment needed.</p>
-      <label>Auto-assign leads to</label>
-      <select value={settings.auto_assign_phone_id||''} onChange={e=>update('auto_assign_phone_id',e.target.value)}>
-        <option value="">Disabled (manual assign)</option>
-        {phones.map(p => <option key={p.id} value={p.id}>{p.nickname}</option>)}
-      </select>
-
-      <button className="btn-primary mt-16" onClick={save}>Save Settings</button>
-      {saved && <span style={{color:'#34d399',marginLeft:12,fontSize:13}}>Saved!</span>}
     </div>
   </div>);
 }
