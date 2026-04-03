@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoDialer Dashboard</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:#1e293b;padding:40px;border-radius:12px;width:360px;border:1px solid #334155}
+.login-box h1{color:#60a5fa;margin-bottom:24px;text-align:center}
+input,select{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#e2e8f0;font-size:14px;margin-bottom:12px}
+input:focus,select:focus{outline:none;border-color:#60a5fa}
+button{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
+.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
+.btn-secondary{background:#334155;color:#94a3b8}.btn-secondary:hover{background:#475569}
+.btn-sm{padding:6px 12px;font-size:12px}
+nav{background:#1e293b;border-bottom:1px solid #334155;padding:0 24px;display:flex;align-items:center;height:56px}
+nav h1{color:#60a5fa;font-size:20px;margin-right:32px}
+nav .tabs{display:flex;gap:4px;flex:1}
+nav .tab{padding:8px 16px;color:#94a3b8;cursor:pointer;border-radius:6px;font-size:14px;font-weight:500}
+nav .tab:hover{color:#e2e8f0;background:#334155}
+nav .tab.active{color:#60a5fa;background:#1e3a5f}
+nav .logout{color:#94a3b8;cursor:pointer;font-size:13px}
+nav .logout:hover{color:#f87171}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;color:#e2e8f0;margin-bottom:16px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;text-align:center}
+.stat-card .num{font-size:32px;font-weight:700;color:#60a5fa}
+.stat-card .label{font-size:12px;color:#94a3b8;margin-top:4px}
+.phone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.phone-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px}
+.phone-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.phone-card .name{font-weight:600;font-size:15px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-online{background:#065f46;color:#34d399}
+.badge-offline{background:#374151;color:#9ca3af}
+.badge-dialing{background:#1e3a5f;color:#60a5fa}
+.badge-paused{background:#78350f;color:#fbbf24}
+.badge-connected{background:#065f46;color:#34d399}
+.badge-no_answer{background:#7f1d1d;color:#fca5a5}
+.badge-pending{background:#374151;color:#9ca3af}
+.badge-failed{background:#7f1d1d;color:#fca5a5}
+.badge-busy{background:#78350f;color:#fbbf24}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 12px;color:#94a3b8;font-size:12px;border-bottom:1px solid #334155;font-weight:600}
+td{padding:10px 12px;border-bottom:1px solid #1e293b;font-size:13px}
+tr:hover{background:#1e293b44}
+.drop-zone{border:2px dashed #475569;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;cursor:pointer;margin-bottom:16px;transition:all .2s}
+.drop-zone:hover,.drop-zone.dragging{border-color:#60a5fa;color:#60a5fa;background:#1e3a5f22}
+.controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.progress-bar{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-bar .fill{height:100%;background:#34d399;border-radius:3px;transition:width .3s}
+.pairing-code{font-size:28px;font-weight:700;letter-spacing:6px;color:#60a5fa;text-align:center;padding:16px;background:#0f172a;border-radius:8px;margin:12px 0}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h2{margin-bottom:16px}
+.info{font-size:12px;color:#94a3b8;margin-top:4px}
+.flex{display:flex;gap:8px;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}
+label{font-size:13px;color:#94a3b8;display:block;margin-bottom:4px}
+.check-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#e2e8f0}
+.check-label input{width:auto;margin:0}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const socket = io();
+
+function App() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [tab, setTab] = useState('dashboard');
+
+  if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'sheets', label: 'Lead Sheets' },
+    { id: 'phones', label: 'Phones' },
+    { id: 'assign', label: 'Assign Leads' },
+    { id: 'calllog', label: 'Call Log' },
+    { id: 'settings', label: 'Settings' },
+  ];
+
+  return (<div>
+    <nav>
+      <h1>AutoDialer</h1>
+      <div className="tabs">
+        {tabs.map(t => <div key={t.id} className={`tab ${tab===t.id?'active':''}`}
+          onClick={()=>setTab(t.id)}>{t.label}</div>)}
+      </div>
+      <span className="logout" onClick={()=>setLoggedIn(false)}>Logout</span>
+    </nav>
+    <div className="container">
+      {tab==='dashboard' && <DashboardTab />}
+      {tab==='sheets' && <SheetsTab />}
+      {tab==='phones' && <PhonesTab />}
+      {tab==='assign' && <AssignTab />}
+      {tab==='calllog' && <CallLogTab />}
+      {tab==='settings' && <SettingsTab />}
+    </div>
+  </div>);
+}
+
+function LoginPage({ onLogin }) {
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
+  const [err, setErr] = useState('');
+  const submit = async () => {
+    const r = await fetch('/api/login', { method: 'POST',
+      headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:user,password:pass})});
+    if (r.ok) onLogin(); else setErr('Invalid credentials');
+  };
+  return (<div className="login-page"><div className="login-box">
+    <h1>AutoDialer</h1>
+    <input placeholder="Username" value={user} onChange={e=>setUser(e.target.value)}
+      onKeyDown={e=>e.key==='Enter'&&submit()} />
+    <input type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}
+      onKeyDown={e=>e.key==='Enter'&&submit()} />
+    {err && <p style={{color:'#f87171',fontSize:13,marginBottom:8}}>{err}</p>}
+    <button className="btn-primary" style={{width:'100%'}} onClick={submit}>Login</button>
+  </div></div>);
+}
+
+function DashboardTab() {
+  const [data, setData] = useState({ stats: {}, phones: [] });
+  const load = async () => { const r = await fetch('/api/dashboard'); setData(await r.json()); };
+  useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, []);
+  useEffect(() => {
+    socket.on('server:phone-status-changed', load);
+    socket.on('server:dialer-state-changed', load);
+    socket.on('server:call-update', load);
+    return () => { socket.off('server:phone-status-changed', load);
+      socket.off('server:dialer-state-changed', load); socket.off('server:call-update', load); };
+  }, []);
+
+  const s = data.stats;
+  const dialAction = async (phoneId, action) => {
+    await fetch(`/api/phones/${phoneId}/dial/${action}`, { method: 'POST' });
+    load();
+  };
+
+  return (<div>
+    <div className="stats-grid">
+      <div className="stat-card"><div className="num">{s.total_leads||0}</div><div className="label">Total Assigned</div></div>
+      <div className="stat-card"><div className="num" style={{color:'#34d399'}}>{s.calls_made||0}</div><div className="label">Calls Made</div></div>
+      <div className="stat-card"><div className="num" style={{color:'#34d399'}}>{s.connected||0}</div><div className="label">Connected</div></div>
+      <div className="stat-card"><div className="num" style={{color:'#f87171'}}>{s.no_answer||0}</div><div className="label">No Answer</div></div>
+      <div className="stat-card"><div className="num" style={{color:'#fbbf24'}}>{s.remaining||0}</div><div className="label">Remaining</div></div>
+      <div className="stat-card"><div className="num">{Math.round((s.total_duration||0)/60)}m</div><div className="label">Talk Time</div></div>
+    </div>
+    <h2 style={{marginBottom:16}}>Phones</h2>
+    <div className="phone-grid">
+      {data.phones.map(p => {
+        const status = p.dialer_running ? (p.dialer_paused ? 'paused' : 'dialing') : (p.connected ? 'online' : 'offline');
+        const total = p.stats?.total || 0;
+        const done = total - (p.stats?.pending || 0);
+        return (<div className="phone-card" key={p.id}>
+          <div className="header">
+            <span className="name">{p.nickname}</span>
+            <span className={`badge badge-${status}`}>{status}</span>
+          </div>
+          {p.battery_level != null && <div className="info">Battery: {p.battery_level}% | Signal: {p.signal_strength}%</div>}
+          {total > 0 && <div>
+            <div className="info">{done} / {total} calls</div>
+            <div className="progress-bar"><div className="fill" style={{width:`${total?done/total*100:0}%`}}/></div>
+          </div>}
+          <div className="controls">
+            {(!p.dialer_running && p.connected) && <button className="btn-success btn-sm" onClick={()=>dialAction(p.id,'start')}>Start</button>}
+            {(p.dialer_running && !p.dialer_paused) && <button className="btn-warning btn-sm" onClick={()=>dialAction(p.id,'pause')}>Pause</button>}
+            {(p.dialer_running && p.dialer_paused) && <button className="btn-success btn-sm" onClick={()=>dialAction(p.id,'resume')}>Resume</button>}
+            {p.dialer_running && <button className="btn-danger btn-sm" onClick={()=>dialAction(p.id,'stop')}>Stop</button>}
+          </div>
+        </div>);
+      })}
+      {data.phones.length === 0 && <p style={{color:'#94a3b8'}}>No phones registered. Go to Phones tab to add one.</p>}
+    </div>
+  </div>);
+}
+
+function SheetsTab() {
+  const [sheets, setSheets] = useState([]);
+  const [phones, setPhones] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [selectedPhones, setSelectedPhones] = useState([]);
+  const [distMode, setDistMode] = useState('round-robin');
+  const fileRef = useRef();
+
+  const load = async () => { const r = await fetch('/api/sheets'); setSheets(await r.json()); };
+  const loadPhones = async () => { const r = await fetch('/api/phones'); setPhones(await r.json()); };
+  useEffect(() => { load(); loadPhones(); }, []);
+
+  const togglePhone = (id) => {
+    setSelectedPhones(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
+  };
+  const selectAllPhones = () => {
+    setSelectedPhones(prev => prev.length === phones.length ? [] : phones.map(p=>p.id));
+  };
+
+  const uploadFile = async (file) => {
+    setUploading(true); setResult(null);
+    const fd = new FormData(); fd.append('file', file);
+    if (selectedPhones.length > 0) {
+      fd.append('phone_ids', JSON.stringify(selectedPhones));
+      fd.append('mode', distMode);
+    }
+    const r = await fetch('/api/sheets/upload', { method: 'POST', body: fd });
+    const data = await r.json();
+    setUploading(false);
+    if (r.ok) { setResult(data.sheet); load(); } else { setResult({ error: data.error }); }
+  };
+
+  const handleDrop = (e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); };
+  const handleDrag = (e) => { e.preventDefault(); setDragging(true); };
+
+  const showPreview = async (id) => {
+    const r = await fetch(`/api/sheets/${id}/leads`);
+    setPreview(await r.json());
+  };
+
+  const deleteSheet = async (id) => {
+    await fetch(`/api/sheets/${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  return (<div>
+    {/* Phone selection for upload */}
+    <div className="card" style={{marginBottom:12}}>
+      <h2>1. Pick Phones to Assign Leads To</h2>
+      {phones.length === 0 ? <p className="info">No phones registered. Go to Phones tab to add one.</p> : <div>
+        <div style={{marginBottom:8}}>
+          <label className="check-label" style={{marginBottom:8}}>
+            <input type="checkbox" checked={selectedPhones.length === phones.length && phones.length > 0}
+              onChange={selectAllPhones} />
+            <strong>Select All</strong>
+          </label>
+          {phones.map(p => <label key={p.id} className="check-label" style={{marginBottom:6,marginLeft:8}}>
+            <input type="checkbox" checked={selectedPhones.includes(p.id)} onChange={()=>togglePhone(p.id)} />
+            {p.nickname} <span className={`badge badge-${p.connected?'online':'offline'}`} style={{marginLeft:4}}>{p.connected?'online':'offline'}</span>
+          </label>)}
+        </div>
+        {selectedPhones.length > 1 && <div>
+          <label>Distribution</label>
+          <select value={distMode} onChange={e=>setDistMode(e.target.value)} style={{maxWidth:300}}>
+            <option value="round-robin">Round Robin (split evenly)</option>
+            <option value="all-to-each">All to Each (every phone gets all leads)</option>
+          </select>
+        </div>}
+        {selectedPhones.length === 0 && <p className="info">No phones selected — leads will be uploaded but not assigned</p>}
+        {selectedPhones.length > 0 && <p style={{color:'#34d399',fontSize:13,marginTop:4}}>{selectedPhones.length} phone{selectedPhones.length>1?'s':''} selected</p>}
+      </div>}
+    </div>
+
+    {/* Upload zone */}
+    <div className="card" style={{marginBottom:12}}>
+      <h2>2. Upload Lead Sheet</h2>
+      <div className={`drop-zone ${dragging?'dragging':''}`}
+        onDrop={handleDrop} onDragOver={handleDrag} onDragLeave={()=>setDragging(false)}
+        onClick={()=>fileRef.current?.click()}>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" hidden
+          onChange={e=>e.target.files[0]&&uploadFile(e.target.files[0])} />
+        {uploading ? 'Uploading & Assigning...' : 'Drop Excel/CSV file here or click to browse'}
+      </div>
+    </div>
+
+    {result && !result.error && <div className="card" style={{borderColor:'#059669'}}>
+      <p>Uploaded <strong>{result.name}</strong> — {result.row_count} leads imported</p>
+      {result.assigned > 0 && <p style={{color:'#34d399',fontSize:13,marginTop:4}}>Assigned {result.assigned} leads to {result.phones_assigned || selectedPhones.length} phone{(result.phones_assigned||selectedPhones.length)>1?'s':''}</p>}
+      {result.assigned === 0 && selectedPhones.length === 0 && <p className="info">Not assigned to any phone yet. Use the Assign Leads tab or select phones above before uploading.</p>}
+      {result.duplicates_removed > 0 && <p className="info">{result.duplicates_removed} duplicates removed</p>}
+      {result.invalid_rows > 0 && <p className="info">{result.invalid_rows} invalid phone numbers skipped</p>}
+      <p className="info">Columns: name="{result.detected_columns?.name}", phone="{result.detected_columns?.phone}"</p>
+    </div>}
+    {result?.error && <div className="card" style={{borderColor:'#dc2626'}}><p style={{color:'#f87171'}}>{result.error}</p></div>}
+
+    <div className="card">
+      <h2>Uploaded Sheets</h2>
+      {sheets.length === 0 ? <p className="info">No sheets uploaded yet</p> :
+      <table><thead><tr><th>Name</th><th>Leads</th><th>Uploaded</th><th>Actions</th></tr></thead>
+      <tbody>{sheets.map(s => <tr key={s.id}>
+        <td>{s.name}</td><td>{s.row_count}</td>
+        <td>{new Date(s.uploaded_at).toLocaleString()}</td>
+        <td><div className="flex">
+          <button className="btn-secondary btn-sm" onClick={()=>showPreview(s.id)}>Preview</button>
+          <button className="btn-danger btn-sm" onClick={()=>deleteSheet(s.id)}>Delete</button>
+        </div></td>
+      </tr>)}</tbody></table>}
+    </div>
+
+    {preview && <div className="modal-overlay" onClick={()=>setPreview(null)}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="flex-between mb-16"><h2>Lead Preview</h2>
+          <button className="btn-secondary btn-sm" onClick={()=>setPreview(null)}>Close</button></div>
+        <table><thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead>
+        <tbody>{preview.slice(0,50).map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td>{l.phone}</td></tr>)}</tbody></table>
+        {preview.length > 50 && <p className="info mt-8">Showing first 50 of {preview.length}</p>}
+      </div>
+    </div>}
+  </div>);
+}
+
+function PhonesTab() {
+  const [phones, setPhones] = useState([]);
+  const [nickname, setNickname] = useState('');
+  const [newCode, setNewCode] = useState(null);
+
+  const load = async () => { const r = await fetch('/api/phones'); setPhones(await r.json()); };
+  useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, []);
+
+  const addPhone = async () => {
+    const r = await fetch('/api/phones/register', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({nickname:nickname||undefined})});
+    const data = await r.json();
+    if (r.ok) { setNewCode(data); setNickname(''); load(); }
+  };
+
+  const deletePhone = async (id) => {
+    await fetch(`/api/phones/${id}`, { method: 'DELETE' });
+    load();
+  };
+
+  return (<div>
+    <div className="card">
+      <h2>Add Phone</h2>
+      <div className="flex">
+        <input placeholder="Phone nickname (optional)" value={nickname} onChange={e=>setNickname(e.target.value)}
+          style={{marginBottom:0}} onKeyDown={e=>e.key==='Enter'&&addPhone()} />
+        <button className="btn-primary" onClick={addPhone}>Add Phone</button>
+      </div>
+      {newCode && <div style={{marginTop:16}}>
+        <p>Phone <strong>{newCode.nickname}</strong> created. Enter this pairing code in the app:</p>
+        <div className="pairing-code">{newCode.pairing_code}</div>
+      </div>}
+    </div>
+
+    <div className="card">
+      <h2>Registered Phones ({phones.length})</h2>
+      {phones.length === 0 ? <p className="info">No phones registered</p> :
+      <table><thead><tr><th>Nickname</th><th>Status</th><th>Pairing Code</th><th>Battery</th><th>Last Seen</th><th>Actions</th></tr></thead>
+      <tbody>{phones.map(p => <tr key={p.id}>
+        <td><strong>{p.nickname}</strong></td>
+        <td><span className={`badge badge-${p.connected?'online':'offline'}`}>{p.connected?'online':'offline'}</span></td>
+        <td>{p.pairing_code ? <span style={{fontFamily:'monospace',color:'#60a5fa'}}>{p.pairing_code}</span> : <span className="info">paired</span>}</td>
+        <td>{p.battery_level != null ? `${p.battery_level}%` : '-'}</td>
+        <td className="info">{p.last_seen ? new Date(p.last_seen).toLocaleString() : 'Never'}</td>
+        <td><button className="btn-danger btn-sm" onClick={()=>deletePhone(p.id)}>Delete</button></td>
+      </tr>)}</tbody></table>}
+    </div>
+  </div>);
+}
+
+function AssignTab() {
+  const [sheets, setSheets] = useState([]);
+  const [phones, setPhones] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
+  const [selectedPhones, setSelectedPhones] = useState([]);
+  const [mode, setMode] = useState('round-robin');
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/sheets').then(r=>r.json()).then(setSheets);
+    fetch('/api/phones').then(r=>r.json()).then(setPhones);
+  }, []);
+
+  const togglePhone = (id) => {
+    setSelectedPhones(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
+  };
+
+  const assign = async () => {
+    setResult(null);
+    const r = await fetch('/api/assign', { method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sheet_id:selectedSheet, phone_ids:selectedPhones, mode})});
+    const data = await r.json();
+    setResult(r.ok ? `Assigned ${data.assigned} leads` : data.error);
+  };
+
+  return (<div>
+    <div className="card">
+      <h2>Assign Leads to Phones</h2>
+      <label>Select Sheet</label>
+      <select value={selectedSheet} onChange={e=>setSelectedSheet(e.target.value)}>
+        <option value="">-- Choose a sheet --</option>
+        {sheets.map(s => <option key={s.id} value={s.id}>{s.name} ({s.row_count} leads)</option>)}
+      </select>
+
+      <label>Select Phones</label>
+      <div style={{marginBottom:12}}>
+        {phones.map(p => <label key={p.id} className="check-label" style={{marginBottom:6}}>
+          <input type="checkbox" checked={selectedPhones.includes(p.id)} onChange={()=>togglePhone(p.id)} />
+          {p.nickname} {p.connected ? '(online)' : '(offline)'}
+        </label>)}
+        {phones.length === 0 && <p className="info">No phones registered</p>}
+      </div>
+
+      <label>Distribution Mode</label>
+      <select value={mode} onChange={e=>setMode(e.target.value)}>
+        <option value="round-robin">Round Robin (split evenly)</option>
+        <option value="all-to-each">All to Each (every phone gets all leads)</option>
+      </select>
+
+      <button className="btn-primary mt-8" onClick={assign}
+        disabled={!selectedSheet || selectedPhones.length===0}>Assign Leads</button>
+      {result && <p className="mt-8" style={{color: typeof result === 'string' && result.includes('Assigned') ? '#34d399' : '#f87171'}}>{result}</p>}
+    </div>
+  </div>);
+}
+
+function CallLogTab() {
+  const [phones, setPhones] = useState([]);
+  const [phoneId, setPhoneId] = useState('all');
+  const [assignments, setAssignments] = useState([]);
+
+  useEffect(() => { fetch('/api/phones').then(r=>r.json()).then(setPhones); }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      if (phoneId === 'all') {
+        // Load from all phones
+        const phonesData = await fetch('/api/phones').then(r=>r.json());
+        let all = [];
+        for (const p of phonesData) {
+          const r = await fetch(`/api/phones/${p.id}/assignments?all=true`);
+          const rows = await r.json();
+          all = all.concat(rows.map(a => ({...a, phone_name: p.nickname})));
+        }
+        setAssignments(all);
+      } else {
+        const r = await fetch(`/api/phones/${phoneId}/assignments?all=true`);
+        const phone = phones.find(p=>p.id===phoneId);
+        const rows = await r.json();
+        setAssignments(rows.map(a => ({...a, phone_name: phone?.nickname})));
+      }
+    };
+    load();
+  }, [phoneId, phones]);
+
+  useEffect(() => {
+    const handler = () => {
+      // Reload on call updates
+      setPhoneId(prev => { setTimeout(() => setPhoneId(prev), 0); return prev; });
+    };
+    socket.on('server:call-update', handler);
+    return () => socket.off('server:call-update', handler);
+  }, []);
+
+  const today = new Date().toISOString().slice(0,10);
+
+  return (<div>
+    <div className="card">
+      <div className="flex-between mb-16">
+        <h2>Call Log</h2>
+        <div className="flex">
+          <select value={phoneId} onChange={e=>setPhoneId(e.target.value)} style={{width:200,marginBottom:0}}>
+            <option value="all">All Phones</option>
+            {phones.map(p => <option key={p.id} value={p.id}>{p.nickname}</option>)}
+          </select>
+          <a href={`/api/export/${today}`} download><button className="btn-secondary btn-sm">Export Today</button></a>
+        </div>
+      </div>
+      <table><thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Duration</th><th>Attempts</th><th>Phone Device</th><th>Notes</th></tr></thead>
+      <tbody>{assignments.map(a => <tr key={a.id}>
+        <td>{a.lead_name}</td><td>{a.lead_phone}</td>
+        <td><span className={`badge badge-${a.call_status}`}>{a.call_status}</span></td>
+        <td>{a.call_duration > 0 ? `${a.call_duration}s` : '-'}</td>
+        <td>{a.attempts}</td>
+        <td>{a.phone_name}</td>
+        <td className="info">{a.notes || '-'}</td>
+      </tr>)}</tbody></table>
+      {assignments.length === 0 && <p className="info" style={{textAlign:'center',padding:20}}>No assignments yet</p>}
+    </div>
+  </div>);
+}
+
+function SettingsTab() {
+  const [settings, setSettings] = useState({});
+  const [phones, setPhones] = useState([]);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/settings').then(r=>r.json()).then(setSettings);
+    fetch('/api/phones').then(r=>r.json()).then(setPhones);
+  }, []);
+
+  const save = async () => {
+    await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(settings) });
+    setSaved(true); setTimeout(()=>setSaved(false), 2000);
+  };
+
+  const update = (key, val) => setSettings(prev => ({...prev, [key]: val}));
+
+  return (<div>
+    <div className="card" style={{maxWidth:500}}>
+      <h2>Dialer Settings</h2>
+      <label>Pre-call Delay (seconds)</label>
+      <input type="number" min="0" max="30" value={settings.pre_call_delay||''} onChange={e=>update('pre_call_delay',e.target.value)} />
+
+      <label>Gap Between Calls (seconds)</label>
+      <input type="number" min="1" max="120" value={settings.call_gap||''} onChange={e=>update('call_gap',e.target.value)} />
+
+      <label>Max Retries</label>
+      <input type="number" min="0" max="10" value={settings.max_retries||''} onChange={e=>update('max_retries',e.target.value)} />
+
+      <label className="check-label mt-8 mb-8">
+        <input type="checkbox" checked={settings.work_hours_enabled==='true'}
+          onChange={e=>update('work_hours_enabled', e.target.checked?'true':'false')} />
+        Enable Working Hours Restriction
+      </label>
+
+      <div className="flex">
+        <div style={{flex:1}}><label>Start</label>
+          <input type="time" value={settings.work_hours_start||'09:00'} onChange={e=>update('work_hours_start',e.target.value)} /></div>
+        <div style={{flex:1}}><label>End</label>
+          <input type="time" value={settings.work_hours_end||'20:00'} onChange={e=>update('work_hours_end',e.target.value)} /></div>
+      </div>
+
+      <h2 className="mt-16">Auto-Assign</h2>
+      <p className="info mb-8">When enabled, uploaded sheets are automatically assigned to the selected phone. No manual assignment needed.</p>
+      <label>Auto-assign leads to</label>
+      <select value={settings.auto_assign_phone_id||''} onChange={e=>update('auto_assign_phone_id',e.target.value)}>
+        <option value="">Disabled (manual assign)</option>
+        {phones.map(p => <option key={p.id} value={p.id}>{p.nickname}</option>)}
+      </select>
+
+      <button className="btn-primary mt-16" onClick={save}>Save Settings</button>
+      {saved && <span style={{color:'#34d399',marginLeft:12,fontSize:13}}>Saved!</span>}
+    </div>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
