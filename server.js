@@ -626,7 +626,19 @@ async function main() {
 
   app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+  // Health check endpoint for uptime monitors
+  app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+  // Self-ping to prevent Render free tier spin-down (every 14 minutes)
   server.listen(PORT, () => {
+    if (process.env.RENDER_EXTERNAL_URL || process.env.RENDER) {
+      const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+      setInterval(() => {
+        const mod = selfUrl.startsWith('https') ? require('https') : require('http');
+        mod.get(`${selfUrl}/api/health`, () => {}).on('error', () => {});
+      }, 14 * 60 * 1000);
+      console.log('  Self-ping enabled (every 14 min)');
+    }
     const interfaces = os.networkInterfaces();
     let localIP = 'localhost';
     for (const iface of Object.values(interfaces)) {
