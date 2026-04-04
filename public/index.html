@@ -767,9 +767,9 @@ function App() {
         </div>
         <table>
           <thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead>
-          <tbody>{preview.slice(0,50).map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td style={{fontFamily:'monospace',fontSize:12}}>{l.phone}</td></tr>)}</tbody>
+          <tbody>{preview.map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td style={{fontFamily:'monospace',fontSize:12}}>{l.phone}</td></tr>)}</tbody>
         </table>
-        {preview.length > 50 && <p className="info mt-8">Showing 50 of {preview.length}</p>}
+        <p className="info mt-8">{preview.length} leads total</p>
       </div>
     </div>}
 
