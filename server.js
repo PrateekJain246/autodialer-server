@@ -135,7 +135,7 @@ async function main() {
     if (!socketId) return;
     const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
       FROM assignments a JOIN leads l ON a.lead_id = l.id
-      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phoneId]);
+      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY l.row_index, a.id`, [phoneId]);
     const sheets = getSheetsForPhone(phoneId);
     io.to(socketId).emit('server:queue-updated', { queue, sheets });
   }
@@ -406,7 +406,7 @@ async function main() {
     const where = all ? '' : "AND a.call_status = 'pending'";
     res.json(dbAll(`SELECT a.*, l.name as lead_name, l.phone as lead_phone
       FROM assignments a JOIN leads l ON a.lead_id = l.id
-      WHERE a.phone_id = ? ${where} ORDER BY a.id`, [req.params.id]));
+      WHERE a.phone_id = ? ${where} ORDER BY l.row_index, a.id`, [req.params.id]));
   });
 
   // Phone self-service: get own queue (for phone app HTTP polling)
@@ -414,7 +414,7 @@ async function main() {
     const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status,
       s.name as sheet_name FROM assignments a JOIN leads l ON a.lead_id = l.id
       JOIN sheets s ON a.sheet_id = s.id
-      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [req.params.id]);
+      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY l.row_index, a.id`, [req.params.id]);
     // Group by sheet
     const sheets = {};
     queue.forEach(q => {
@@ -436,7 +436,7 @@ async function main() {
     const leads = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
       FROM assignments a JOIN leads l ON a.lead_id = l.id
       WHERE a.phone_id = ? AND a.sheet_id = ? AND a.call_status = 'pending'
-      ORDER BY a.id`, [req.params.id, req.params.sheetId]);
+      ORDER BY l.row_index, a.id`, [req.params.id, req.params.sheetId]);
     res.json({ leads });
   });
 
@@ -448,7 +448,7 @@ async function main() {
     if (!socketId) return res.status(400).json({ error: 'Phone not connected' });
     const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
       FROM assignments a JOIN leads l ON a.lead_id = l.id
-      WHERE a.phone_id = ? AND a.sheet_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phoneId, sheetId]);
+      WHERE a.phone_id = ? AND a.sheet_id = ? AND a.call_status = 'pending' ORDER BY l.row_index, a.id`, [phoneId, sheetId]);
     if (queue.length === 0) return res.status(400).json({ error: 'No pending leads in this sheet' });
     const settings = getSettings();
     io.to(socketId).emit('server:dial-start', { queue, settings, sheet_id: sheetId });
@@ -467,7 +467,7 @@ async function main() {
   app.get('/api/sheets/:id/assignments', (req, res) => {
     res.json(dbAll(`SELECT a.*, l.name as lead_name, l.phone as lead_phone, p.nickname as phone_name
       FROM assignments a JOIN leads l ON a.lead_id = l.id JOIN phones p ON a.phone_id = p.id
-      WHERE a.sheet_id = ? ORDER BY a.id`, [req.params.id]));
+      WHERE a.sheet_id = ? ORDER BY l.row_index, a.id`, [req.params.id]));
   });
 
   // Dashboard stats
@@ -506,7 +506,7 @@ async function main() {
     if (!socketId) return res.status(400).json({ error: 'Phone not connected' });
     const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
       FROM assignments a JOIN leads l ON a.lead_id = l.id
-      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phoneId]);
+      WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY l.row_index, a.id`, [phoneId]);
     if (queue.length === 0) return res.status(400).json({ error: 'No pending leads' });
     const settings = getSettings();
     io.to(socketId).emit('server:dial-start', { queue, settings });
@@ -591,7 +591,7 @@ async function main() {
       const settings = getSettings();
       const queue = dbAll(`SELECT a.id, l.name as lead_name, l.phone as lead_phone, a.call_status
         FROM assignments a JOIN leads l ON a.lead_id = l.id
-        WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY a.id`, [phone.id]);
+        WHERE a.phone_id = ? AND a.call_status = 'pending' ORDER BY l.row_index, a.id`, [phone.id]);
 
       const sheets = getSheetsForPhone(phone.id);
       socket.emit('server:reconnect-success', {
