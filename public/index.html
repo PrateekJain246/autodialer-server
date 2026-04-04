@@ -329,7 +329,7 @@ tr:hover td { background: rgba(35,44,74,0.4); }
 .modal {
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-lg); padding: 30px;
-  max-width: 620px; width: 92%; max-height: 82vh; overflow-y: auto;
+  max-width: 680px; width: 94%; max-height: 90vh; overflow-y: auto;
   box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 1px rgba(99,102,241,0.2);
   animation: modalIn 0.25s ease;
 }
@@ -762,9 +762,10 @@ function App() {
     {preview && <div className="modal-overlay" onClick={()=>setPreview(null)}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
-          <div className="modal-title">Lead Preview</div>
+          <div className="modal-title">Lead Preview ({preview.length} leads)</div>
           <button className="btn btn-ghost btn-sm" onClick={()=>setPreview(null)}>Close</button>
         </div>
+        <p className="info mb-8" style={{color:'var(--green)',fontWeight:600}}>Showing all {preview.length} leads</p>
         <table>
           <thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead>
           <tbody>{preview.map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td style={{fontFamily:'monospace',fontSize:12}}>{l.phone}</td></tr>)}</tbody>
