@@ -421,9 +421,9 @@ function App() {
       const map = {};
       await Promise.all(data.map(async (s) => {
         try {
-          const r2 = await fetch(`/api/sheets/${s.id}/assignments`);
+          const r2 = await fetch(`/api/sheets/${s.id}/phones`);
           const rows = await r2.json();
-          map[s.id] = [...new Set(rows.map(a => a.phone_name).filter(Boolean))];
+          map[s.id] = rows; // [{phone_id, phone_name, total, pending, connected, no_answer}]
         } catch(e) { map[s.id] = []; }
       }));
       setSheetPhones(map);
@@ -499,6 +499,17 @@ function App() {
     const data = await r.json();
     if (r.ok) { addToast(`Assigned ${data.assigned} leads!`, 'success'); loadSheets(); }
     else addToast(data.error || 'Assign failed', 'error');
+  };
+
+  // Unassign a sheet from a phone
+  const unassignSheetFromPhone = async (sheetId, phoneId, phoneName) => {
+    if (!confirm(`Unassign this sheet from ${phoneName}? All leads will be removed from their queue.`)) return;
+    const r = await fetch('/api/assign', { method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sheet_id: sheetId, phone_id: phoneId})});
+    const data = await r.json();
+    if (r.ok) { addToast(`Removed ${data.removed} assignments from ${phoneName}`, 'success'); loadSheets(); }
+    else addToast(data.error || 'Unassign failed', 'error');
   };
 
   // Call Log
@@ -671,45 +682,71 @@ function App() {
             {sheets.map(s => {
               const total = s.row_count || 0;
               const assignedPhones = sheetPhones[s.id] || [];
-              return (<div className="sheet-item" key={s.id}>
-                {/* LEFT: info */}
-                <div className="sheet-left">
-                  <div className="sheet-top">
-                    <div className="sheet-name">{s.name}</div>
-                    <div className="sheet-date">{new Date(s.uploaded_at).toLocaleDateString()}</div>
+              return (<div className="sheet-item" key={s.id} style={{flexDirection:'column',alignItems:'stretch'}}>
+                {/* TOP ROW: sheet info + assign dropdown */}
+                <div style={{display:'flex',alignItems:'flex-start',gap:16}}>
+                  <div className="sheet-left">
+                    <div className="sheet-top">
+                      <div className="sheet-name">{s.name}</div>
+                      <div className="sheet-date">{new Date(s.uploaded_at).toLocaleDateString()}</div>
+                    </div>
+                    <div className="sheet-stats">
+                      <span className="sheet-stat"><strong>{total}</strong> leads</span>
+                      {assignedPhones.length === 0 && <span className="badge badge-offline" style={{padding:'2px 9px',fontSize:9}}>Unassigned</span>}
+                    </div>
+                    <div className="flex" style={{marginTop:8,gap:5}}>
+                      <button className="btn btn-ghost btn-xs" onClick={()=>showPreview(s.id)}>View Leads</button>
+                      <button className="btn btn-danger btn-xs" onClick={()=>deleteSheet(s.id)}>Delete</button>
+                    </div>
                   </div>
-                  <div className="sheet-stats">
-                    <span className="sheet-stat"><strong>{total}</strong> leads</span>
-                    {assignedPhones.length > 0 && assignedPhones.map(name =>
-                      <span key={name} className="badge badge-online" style={{padding:'2px 9px',fontSize:9}}>{name}</span>
-                    )}
-                    {assignedPhones.length === 0 && <span className="badge badge-offline" style={{padding:'2px 9px',fontSize:9}}>Unassigned</span>}
-                  </div>
-                  <div className="flex" style={{marginTop:8,gap:5}}>
-                    <button className="btn btn-ghost btn-xs" onClick={()=>showPreview(s.id)}>View Leads</button>
-                    <button className="btn btn-danger btn-xs" onClick={()=>deleteSheet(s.id)}>Delete</button>
+
+                  <div className="sheet-assign">
+                    <label style={{margin:0,marginBottom:4,fontSize:9}}>Assign to Phone</label>
+                    <select
+                      value={sheetAssignPhone[s.id] || ''}
+                      onChange={e => setSheetAssignPhone(prev => ({...prev, [s.id]: e.target.value}))}
+                    >
+                      <option value="">Select phone...</option>
+                      {phones.map(p => (
+                        <option key={p.id} value={p.id}>{p.nickname} {p.connected ? '(online)' : '(offline)'}</option>
+                      ))}
+                    </select>
+                    <button className="btn btn-primary btn-sm btn-full"
+                      disabled={!sheetAssignPhone[s.id]}
+                      onClick={()=>assignSheetToPhone(s.id)}
+                      style={{marginTop:2}}>
+                      Assign
+                    </button>
                   </div>
                 </div>
 
-                {/* RIGHT: assign dropdown */}
-                <div className="sheet-assign">
-                  <label style={{margin:0,marginBottom:4,fontSize:9}}>Assign to Phone</label>
-                  <select
-                    value={sheetAssignPhone[s.id] || ''}
-                    onChange={e => setSheetAssignPhone(prev => ({...prev, [s.id]: e.target.value}))}
-                  >
-                    <option value="">Select phone...</option>
-                    {phones.map(p => (
-                      <option key={p.id} value={p.id}>{p.nickname} {p.connected ? '(online)' : '(offline)'}</option>
-                    ))}
-                  </select>
-                  <button className="btn btn-primary btn-sm btn-full"
-                    disabled={!sheetAssignPhone[s.id]}
-                    onClick={()=>assignSheetToPhone(s.id)}
-                    style={{marginTop:2}}>
-                    Assign
-                  </button>
-                </div>
+                {/* ASSIGNED PHONES LIST with unassign */}
+                {assignedPhones.length > 0 && <div style={{
+                  marginTop:12, paddingTop:10,
+                  borderTop:'1px solid var(--border-subtle)',
+                  display:'flex', flexDirection:'column', gap:6
+                }}>
+                  <label style={{margin:0,fontSize:9}}>Assigned Phones</label>
+                  {assignedPhones.map(ap => (
+                    <div key={ap.phone_id} style={{
+                      display:'flex', alignItems:'center', gap:10,
+                      padding:'6px 10px', borderRadius:10,
+                      background:'var(--bg-input)', border:'1px solid var(--border-subtle)'
+                    }}>
+                      <span style={{fontWeight:700,fontSize:13,flex:1}}>{ap.phone_name}</span>
+                      <span className="badge badge-pending" style={{padding:'2px 8px',fontSize:9}}>{ap.pending} pending</span>
+                      <span className="badge badge-connected" style={{padding:'2px 8px',fontSize:9}}>{ap.connected} done</span>
+                      <span className="badge badge-no_answer" style={{padding:'2px 8px',fontSize:9}}>{ap.no_answer} missed</span>
+                      <button className="btn btn-xs" onClick={()=>unassignSheetFromPhone(s.id, ap.phone_id, ap.phone_name)}
+                        style={{
+                          background:'rgba(244,63,94,0.08)', color:'var(--red)',
+                          border:'1px solid rgba(244,63,94,0.18)', fontWeight:700, fontSize:10
+                        }}>
+                        Unassign
+                      </button>
+                    </div>
+                  ))}
+                </div>}
               </div>);
             })}
             {sheets.length === 0 && <div style={{textAlign:'center',padding:'32px 20px',color:'var(--text-muted)'}}>

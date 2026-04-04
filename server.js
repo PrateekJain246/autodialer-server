@@ -375,6 +375,32 @@ async function main() {
     res.json({ success: true, assigned });
   });
 
+  // Unassign a sheet from a phone — removes all assignments for that sheet+phone
+  app.delete('/api/assign', (req, res) => {
+    const { sheet_id, phone_id } = req.body;
+    if (!sheet_id || !phone_id) return res.status(400).json({ error: 'Missing sheet_id or phone_id' });
+    const count = dbGet('SELECT COUNT(*) as c FROM assignments WHERE sheet_id = ? AND phone_id = ?', [sheet_id, phone_id]);
+    dbRun('DELETE FROM assignments WHERE sheet_id = ? AND phone_id = ?', [sheet_id, phone_id]);
+    saveDb();
+    // Notify the phone so the sheet disappears from its app
+    sendSheetsUpdatedToPhone(phone_id);
+    sendQueueToPhone(phone_id);
+    io.emit('server:assignments-changed');
+    res.json({ success: true, removed: count?.c || 0 });
+  });
+
+  // Get assignments per sheet, grouped by phone
+  app.get('/api/sheets/:id/phones', (req, res) => {
+    const rows = dbAll(`SELECT DISTINCT a.phone_id, p.nickname as phone_name,
+      COUNT(a.id) as total,
+      SUM(CASE WHEN a.call_status = 'pending' THEN 1 ELSE 0 END) as pending,
+      SUM(CASE WHEN a.call_status = 'connected' THEN 1 ELSE 0 END) as connected,
+      SUM(CASE WHEN a.call_status = 'no_answer' THEN 1 ELSE 0 END) as no_answer
+      FROM assignments a JOIN phones p ON a.phone_id = p.id
+      WHERE a.sheet_id = ? GROUP BY a.phone_id`, [req.params.id]);
+    res.json(rows);
+  });
+
   app.get('/api/phones/:id/assignments', (req, res) => {
     const all = req.query.all === 'true';
     const where = all ? '' : "AND a.call_status = 'pending'";
