@@ -3,498 +3,769 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoDialer Dashboard</title>
+<title>AutoDialer Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
-.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh}
-.login-box{background:#1e293b;padding:40px;border-radius:12px;width:360px;border:1px solid #334155}
-.login-box h1{color:#60a5fa;margin-bottom:24px;text-align:center}
-input,select{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#e2e8f0;font-size:14px;margin-bottom:12px}
-input:focus,select:focus{outline:none;border-color:#60a5fa}
-button{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
-.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
-.btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
-.btn-success{background:#059669;color:#fff}.btn-success:hover{background:#047857}
-.btn-warning{background:#d97706;color:#fff}.btn-warning:hover{background:#b45309}
-.btn-secondary{background:#334155;color:#94a3b8}.btn-secondary:hover{background:#475569}
-.btn-sm{padding:6px 12px;font-size:12px}
-nav{background:#1e293b;border-bottom:1px solid #334155;padding:0 24px;display:flex;align-items:center;height:56px}
-nav h1{color:#60a5fa;font-size:20px;margin-right:32px}
-nav .tabs{display:flex;gap:4px;flex:1}
-nav .tab{padding:8px 16px;color:#94a3b8;cursor:pointer;border-radius:6px;font-size:14px;font-weight:500}
-nav .tab:hover{color:#e2e8f0;background:#334155}
-nav .tab.active{color:#60a5fa;background:#1e3a5f}
-nav .logout{color:#94a3b8;cursor:pointer;font-size:13px}
-nav .logout:hover{color:#f87171}
-.container{max-width:1200px;margin:0 auto;padding:24px}
-.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px;margin-bottom:16px}
-.card h2{font-size:16px;color:#e2e8f0;margin-bottom:16px}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
-.stat-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;text-align:center}
-.stat-card .num{font-size:32px;font-weight:700;color:#60a5fa}
-.stat-card .label{font-size:12px;color:#94a3b8;margin-top:4px}
-.phone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.phone-card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px}
-.phone-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.phone-card .name{font-weight:600;font-size:15px}
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.badge-online{background:#065f46;color:#34d399}
-.badge-offline{background:#374151;color:#9ca3af}
-.badge-dialing{background:#1e3a5f;color:#60a5fa}
-.badge-paused{background:#78350f;color:#fbbf24}
-.badge-connected{background:#065f46;color:#34d399}
-.badge-no_answer{background:#7f1d1d;color:#fca5a5}
-.badge-pending{background:#374151;color:#9ca3af}
-.badge-failed{background:#7f1d1d;color:#fca5a5}
-.badge-busy{background:#78350f;color:#fbbf24}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:10px 12px;color:#94a3b8;font-size:12px;border-bottom:1px solid #334155;font-weight:600}
-td{padding:10px 12px;border-bottom:1px solid #1e293b;font-size:13px}
-tr:hover{background:#1e293b44}
-.drop-zone{border:2px dashed #475569;border-radius:12px;padding:40px;text-align:center;color:#94a3b8;cursor:pointer;margin-bottom:16px;transition:all .2s}
-.drop-zone:hover,.drop-zone.dragging{border-color:#60a5fa;color:#60a5fa;background:#1e3a5f22}
-.controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.progress-bar{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-top:8px}
-.progress-bar .fill{height:100%;background:#34d399;border-radius:3px;transition:width .3s}
-.pairing-code{font-size:28px;font-weight:700;letter-spacing:6px;color:#60a5fa;text-align:center;padding:16px;background:#0f172a;border-radius:8px;margin:12px 0}
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100}
-.modal{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
-.modal h2{margin-bottom:16px}
-.info{font-size:12px;color:#94a3b8;margin-top:4px}
-.flex{display:flex;gap:8px;align-items:center}
-.flex-between{display:flex;justify-content:space-between;align-items:center}
-.mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}
-label{font-size:13px;color:#94a3b8;display:block;margin-bottom:4px}
-.check-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#e2e8f0}
-.check-label input{width:auto;margin:0}
+:root {
+  --bg-body: #080c18;
+  --bg-card: #1a2038;
+  --bg-card-inner: #232c4a;
+  --bg-card-hover: #2a345a;
+  --bg-input: #151b30;
+  --border-card: #303a5c;
+  --border-subtle: #2a3352;
+  --border-focus: #6366f1;
+  --text-primary: #f0f2f8;
+  --text-secondary: #b0b8d0;
+  --text-muted: #6b7599;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-glow: rgba(99,102,241,0.15);
+  --accent-glow-strong: rgba(99,102,241,0.28);
+  --green: #22c55e;
+  --green-glow: rgba(34,197,94,0.14);
+  --red: #f43f5e;
+  --red-glow: rgba(244,63,94,0.12);
+  --amber: #f59e0b;
+  --amber-glow: rgba(245,158,11,0.12);
+  --cyan: #22d3ee;
+  --cyan-glow: rgba(34,211,238,0.12);
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-pill: 50px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-body);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -180px; left: 50%; transform: translateX(-50%);
+  width: 900px; height: 500px;
+  background: radial-gradient(ellipse, rgba(99,102,241,0.07) 0%, rgba(99,102,241,0.02) 40%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #343e62; border-radius: 10px; }
+
+/* ======== HEADER ======== */
+.header {
+  background: linear-gradient(180deg, rgba(26,32,56,0.97) 0%, rgba(8,12,24,0.97) 100%);
+  border-bottom: 1px solid var(--border-card);
+  padding: 0 36px; height: 68px;
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(24px);
+}
+.header-brand { display: flex; align-items: center; gap: 14px; }
+.header-logo {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, #6366f1, #a78bfa, #6366f1);
+  background-size: 200% 200%;
+  animation: shiftGrad 4s ease infinite;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 900; color: #fff;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+}
+@keyframes shiftGrad { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+.header-title {
+  font-size: 20px; font-weight: 800;
+  background: linear-gradient(135deg, #a5b4fc, #c4b5fd, #818cf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.live-indicator {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 14px;
+  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.18);
+  border-radius: var(--radius-pill);
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 10px var(--green);
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 10px var(--green)} 50%{opacity:0.4;box-shadow:0 0 4px var(--green)} }
+.live-text { font-size: 11px; color: var(--green); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+/* ======== LAYOUT ======== */
+.container { max-width: 1400px; margin: 0 auto; padding: 28px 32px; position: relative; z-index: 1; }
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.full-width { grid-column: 1 / -1; }
+
+/* ======== CARDS ======== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 26px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.25), transparent);
+}
+.card:hover { border-color: #3e4870; box-shadow: 0 8px 40px rgba(0,0,0,0.2), 0 0 1px rgba(99,102,241,0.15); }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.card-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.card-icon.accent { background: var(--accent-glow); color: var(--accent-light); }
+.card-icon.green { background: var(--green-glow); color: var(--green); }
+.card-icon.cyan { background: var(--cyan-glow); color: var(--cyan); }
+
+/* ======== BADGES ======== */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 11px; border-radius: var(--radius-pill);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+}
+.badge-online { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.badge-offline { background: rgba(100,116,139,0.1); color: #7b8aaa; border: 1px solid rgba(100,116,139,0.15); }
+.badge-dialing { background: var(--accent-glow); color: var(--accent-light); border: 1px solid rgba(99,102,241,0.22); }
+.badge-paused { background: var(--amber-glow); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+.badge-connected { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+.badge-no_answer { background: var(--red-glow); color: var(--red); border: 1px solid rgba(244,63,94,0.18); }
+.badge-pending { background: rgba(100,116,139,0.1); color: #94a3b8; border: 1px solid rgba(100,116,139,0.15); }
+.badge-failed { background: var(--red-glow); color: var(--red); border: 1px solid rgba(244,63,94,0.18); }
+.badge-busy { background: var(--amber-glow); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+
+/* ======== BUTTONS ======== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px; border: none; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease; white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+.btn:active { transform: scale(0.96); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff; box-shadow: 0 3px 14px rgba(99,102,241,0.35);
+}
+.btn-primary:hover { box-shadow: 0 6px 24px rgba(99,102,241,0.45); transform: translateY(-1px); }
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff; box-shadow: 0 3px 14px rgba(34,197,94,0.3);
+}
+.btn-danger {
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  color: #fff; box-shadow: 0 3px 12px rgba(244,63,94,0.25);
+}
+.btn-warning {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff; box-shadow: 0 3px 12px rgba(245,158,11,0.25);
+}
+.btn-ghost {
+  background: rgba(99,102,241,0.07);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-card);
+}
+.btn-ghost:hover { background: rgba(99,102,241,0.12); color: var(--text-primary); border-color: #4a5580; }
+.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 9px; }
+.btn-xs { padding: 4px 10px; font-size: 10px; border-radius: 8px; }
+.btn-lg { padding: 13px 28px; font-size: 15px; border-radius: 14px; }
+.btn-full { width: 100%; }
+
+/* ======== INPUTS ======== */
+input, select {
+  width: 100%; padding: 11px 16px;
+  background: var(--bg-input); border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: 14px; font-family: 'Inter', sans-serif;
+  transition: all 0.2s; outline: none;
+}
+input:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 0 20px rgba(99,102,241,0.08);
+}
+input::placeholder { color: var(--text-muted); }
+
+/* ======== DROP ZONE ======== */
+.drop-zone {
+  border: 2px dashed var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 44px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.3s;
+  background: linear-gradient(135deg, rgba(21,27,48,0.6), rgba(35,44,74,0.3));
+}
+.drop-zone:hover, .drop-zone.dragging {
+  border-color: var(--accent); color: var(--accent-light);
+  background: linear-gradient(135deg, rgba(99,102,241,0.05), rgba(99,102,241,0.02));
+}
+.drop-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.8; }
+.drop-text { font-size: 15px; font-weight: 600; }
+.drop-sub { font-size: 12px; margin-top: 8px; opacity: 0.6; }
+
+/* ======== PHONE CHIPS ======== */
+.phone-select-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.phone-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 16px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.25s;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card-inner);
+  color: var(--text-secondary); user-select: none;
+}
+.phone-chip:hover { border-color: var(--accent); color: var(--accent-light); }
+.phone-chip.selected {
+  background: var(--accent-glow-strong); border-color: var(--accent);
+  color: var(--accent-light); box-shadow: 0 0 14px rgba(99,102,241,0.18);
+}
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; }
+.chip-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.chip-dot.off { background: #475569; }
+
+/* ======== PHONE LIST ======== */
+.phone-list { display: flex; flex-direction: column; gap: 8px; }
+.phone-item {
+  background: var(--bg-card-inner); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  transition: all 0.25s;
+}
+.phone-item:hover { background: var(--bg-card-hover); border-color: #3e4870; }
+.phone-avatar {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.phone-avatar.online { background: var(--green-glow); border: 1px solid rgba(34,197,94,0.18); }
+.phone-avatar.offline { background: rgba(100,116,139,0.08); border: 1px solid rgba(100,116,139,0.12); }
+.phone-info { flex: 1; min-width: 0; }
+.phone-name { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.phone-meta { font-size: 11px; color: var(--text-muted); }
+.phone-actions { display: flex; gap: 5px; flex-shrink: 0; }
+
+/* ======== SHEET LIST ======== */
+.sheet-list { display: flex; flex-direction: column; gap: 10px; }
+.sheet-item {
+  background: var(--bg-card-inner); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 16px 18px;
+  transition: all 0.25s;
+  display: flex; align-items: center; gap: 16px;
+}
+.sheet-item:hover { border-color: #3e4870; background: var(--bg-card-hover); }
+.sheet-left { flex: 1; min-width: 0; }
+.sheet-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sheet-name { font-weight: 700; font-size: 14px; }
+.sheet-date { font-size: 11px; color: var(--text-muted); }
+.sheet-stats { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.sheet-stat { font-size: 12px; color: var(--text-secondary); }
+.sheet-stat strong { font-weight: 700; }
+
+/* INLINE ASSIGN PANEL — right side of each sheet */
+.sheet-assign {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  flex-shrink: 0; min-width: 180px;
+}
+.sheet-assign select {
+  width: 180px; padding: 7px 12px; font-size: 12px;
+  border-radius: 10px; background: var(--bg-input);
+  border: 1px solid var(--border-card); color: var(--text-primary);
+}
+.sheet-assign select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.sheet-assign-row { display: flex; gap: 5px; align-items: center; }
+
+/* ======== PAIRING CODE ======== */
+.pairing-code {
+  font-size: 34px; font-weight: 900; letter-spacing: 10px;
+  background: linear-gradient(135deg, var(--accent-light), #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  text-align: center; padding: 22px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md); margin: 14px 0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* ======== TABLES ======== */
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; padding: 10px 14px;
+  font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+  border-bottom: 1px solid var(--border-subtle);
+}
+td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid rgba(42,51,82,0.5); }
+tr:hover td { background: rgba(35,44,74,0.4); }
+
+/* ======== MODALS ======== */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(8,12,24,0.82); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; animation: fadeIn 0.15s ease;
+}
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg); padding: 30px;
+  max-width: 620px; width: 92%; max-height: 82vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 1px rgba(99,102,241,0.2);
+  animation: modalIn 0.25s ease;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+@keyframes modalIn { from{opacity:0;transform:translateY(16px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.modal-title { font-size: 18px; font-weight: 800; }
+
+/* ======== TOASTS ======== */
+.toast-container {
+  position: fixed; top: 78px; right: 28px;
+  z-index: 200; display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 12px 22px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4); backdrop-filter: blur(12px);
+}
+.toast-success { background: rgba(34,197,94,0.16); color: var(--green); border: 1px solid rgba(34,197,94,0.22); }
+.toast-error { background: rgba(244,63,94,0.16); color: var(--red); border: 1px solid rgba(244,63,94,0.22); }
+.toast-info { background: var(--accent-glow); color: var(--accent-light); border: 1px solid rgba(99,102,241,0.22); }
+@keyframes toastIn { from{transform:translateX(80px);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+/* ======== MISC ======== */
+label {
+  font-size: 11px; color: var(--text-muted); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  display: block; margin-bottom: 7px;
+}
+.info { font-size: 12px; color: var(--text-muted); }
+.flex { display: flex; gap: 8px; align-items: center; }
+.mb-8{margin-bottom:8px} .mb-12{margin-bottom:12px} .mb-16{margin-bottom:16px} .mt-8{margin-top:8px}
+
+@media (max-width: 900px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .container { padding: 16px; }
+  .header { padding: 0 16px; }
+  .sheet-item { flex-direction: column; align-items: stretch; }
+  .sheet-assign { align-items: stretch; min-width: unset; }
+  .sheet-assign select { width: 100%; }
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
-
 const socket = io();
 
+let toastId = 0;
+function useToasts() {
+  const [toasts, setToasts] = useState([]);
+  const addToast = useCallback((msg, type = 'info') => {
+    const id = ++toastId;
+    setToasts(prev => [...prev, { id, msg, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  }, []);
+  return { toasts, addToast };
+}
+
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState('dashboard');
+  const [phones, setPhones] = useState([]);
+  const [sheets, setSheets] = useState([]);
+  const [sheetPhones, setSheetPhones] = useState({});
+  const [newCode, setNewCode] = useState(null);
+  const [nickname, setNickname] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [selectedUploadPhones, setSelectedUploadPhones] = useState([]);
+  const [distMode, setDistMode] = useState('round-robin');
+  const [preview, setPreview] = useState(null);
+  const [callLogModal, setCallLogModal] = useState(false);
+  const [callLogs, setCallLogs] = useState([]);
+  // Per-sheet assign selection: { [sheetId]: phoneId }
+  const [sheetAssignPhone, setSheetAssignPhone] = useState({});
+  const fileRef = useRef();
+  const { toasts, addToast } = useToasts();
 
-  if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
-
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'sheets', label: 'Lead Sheets' },
-    { id: 'phones', label: 'Phones' },
-    { id: 'assign', label: 'Assign Leads' },
-    { id: 'calllog', label: 'Call Log' },
-  ];
-
-  return (<div>
-    <nav>
-      <h1>AutoDialer</h1>
-      <div className="tabs">
-        {tabs.map(t => <div key={t.id} className={`tab ${tab===t.id?'active':''}`}
-          onClick={()=>setTab(t.id)}>{t.label}</div>)}
-      </div>
-      <span className="logout" onClick={()=>setLoggedIn(false)}>Logout</span>
-    </nav>
-    <div className="container">
-      {tab==='dashboard' && <DashboardTab />}
-      {tab==='sheets' && <SheetsTab />}
-      {tab==='phones' && <PhonesTab />}
-      {tab==='assign' && <AssignTab />}
-      {tab==='calllog' && <CallLogTab />}
-    </div>
-  </div>);
-}
-
-function LoginPage({ onLogin }) {
-  const [user, setUser] = useState('');
-  const [pass, setPass] = useState('');
-  const [err, setErr] = useState('');
-  const submit = async () => {
-    const r = await fetch('/api/login', { method: 'POST',
-      headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:user,password:pass})});
-    if (r.ok) onLogin(); else setErr('Invalid credentials');
+  const loadPhones = async () => {
+    try { const r = await fetch('/api/phones'); setPhones(await r.json()); } catch(e) {}
   };
-  return (<div className="login-page"><div className="login-box">
-    <h1>AutoDialer</h1>
-    <input placeholder="Username" value={user} onChange={e=>setUser(e.target.value)}
-      onKeyDown={e=>e.key==='Enter'&&submit()} />
-    <input type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)}
-      onKeyDown={e=>e.key==='Enter'&&submit()} />
-    {err && <p style={{color:'#f87171',fontSize:13,marginBottom:8}}>{err}</p>}
-    <button className="btn-primary" style={{width:'100%'}} onClick={submit}>Login</button>
-  </div></div>);
-}
+  const loadSheets = async () => {
+    try {
+      const r = await fetch('/api/sheets');
+      const data = await r.json();
+      setSheets(data);
+      const map = {};
+      await Promise.all(data.map(async (s) => {
+        try {
+          const r2 = await fetch(`/api/sheets/${s.id}/assignments`);
+          const rows = await r2.json();
+          map[s.id] = [...new Set(rows.map(a => a.phone_name).filter(Boolean))];
+        } catch(e) { map[s.id] = []; }
+      }));
+      setSheetPhones(map);
+    } catch(e) {}
+  };
+  const loadAll = () => { loadPhones(); loadSheets(); };
 
-function DashboardTab() {
-  const [data, setData] = useState({ stats: {}, phones: [] });
-  const load = async () => { const r = await fetch('/api/dashboard'); setData(await r.json()); };
-  useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, []);
   useEffect(() => {
-    socket.on('server:phone-status-changed', load);
-    socket.on('server:dialer-state-changed', load);
-    socket.on('server:call-update', load);
-    return () => { socket.off('server:phone-status-changed', load);
-      socket.off('server:dialer-state-changed', load); socket.off('server:call-update', load); };
+    loadAll();
+    const iv = setInterval(loadAll, 8000);
+    socket.on('server:phone-status-changed', loadAll);
+    socket.on('server:dialer-state-changed', loadAll);
+    socket.on('server:call-update', loadAll);
+    return () => {
+      clearInterval(iv);
+      socket.off('server:phone-status-changed', loadAll);
+      socket.off('server:dialer-state-changed', loadAll);
+      socket.off('server:call-update', loadAll);
+    };
   }, []);
 
-  const s = data.stats;
-
-  return (<div>
-    <div className="stats-grid">
-      <div className="stat-card"><div className="num">{s.total_leads||0}</div><div className="label">Total Assigned</div></div>
-      <div className="stat-card"><div className="num" style={{color:'#34d399'}}>{s.calls_made||0}</div><div className="label">Calls Made</div></div>
-      <div className="stat-card"><div className="num" style={{color:'#34d399'}}>{s.connected||0}</div><div className="label">Connected</div></div>
-      <div className="stat-card"><div className="num" style={{color:'#f87171'}}>{s.no_answer||0}</div><div className="label">No Answer</div></div>
-      <div className="stat-card"><div className="num" style={{color:'#fbbf24'}}>{s.remaining||0}</div><div className="label">Remaining</div></div>
-      <div className="stat-card"><div className="num">{Math.round((s.total_duration||0)/60)}m</div><div className="label">Talk Time</div></div>
-    </div>
-    <h2 style={{marginBottom:16}}>Phones</h2>
-    <div className="phone-grid">
-      {data.phones.map(p => {
-        const status = p.dialer_running ? (p.dialer_paused ? 'paused' : 'dialing') : (p.connected ? 'online' : 'offline');
-        const total = p.stats?.total || 0;
-        const done = total - (p.stats?.pending || 0);
-        return (<div className="phone-card" key={p.id}>
-          <div className="header">
-            <span className="name">{p.nickname}</span>
-            <span className={`badge badge-${status}`}>{status}</span>
-          </div>
-          {p.battery_level != null && <div className="info">Battery: {p.battery_level}% | Signal: {p.signal_strength}%</div>}
-          {total > 0 && <div>
-            <div className="info">{done} / {total} calls</div>
-            <div className="progress-bar"><div className="fill" style={{width:`${total?done/total*100:0}%`}}/></div>
-          </div>}
-        </div>);
-      })}
-      {data.phones.length === 0 && <p style={{color:'#94a3b8'}}>No phones registered. Go to Phones tab to add one.</p>}
-    </div>
-  </div>);
-}
-
-function SheetsTab() {
-  const [sheets, setSheets] = useState([]);
-  const [phones, setPhones] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const [selectedPhones, setSelectedPhones] = useState([]);
-  const [distMode, setDistMode] = useState('round-robin');
-  const [sheetPhones, setSheetPhones] = useState({});
-  const fileRef = useRef();
-
-  const loadSheetAssignments = async (sheetList) => {
-    const map = {};
-    await Promise.all(sheetList.map(async (s) => {
-      try {
-        const r = await fetch(`/api/sheets/${s.id}/assignments`);
-        const rows = await r.json();
-        const uniqueNames = [...new Set(rows.map(a => a.phone_name).filter(Boolean))];
-        map[s.id] = uniqueNames;
-      } catch(e) { map[s.id] = []; }
-    }));
-    setSheetPhones(map);
-  };
-
-  const load = async () => {
-    const r = await fetch('/api/sheets');
+  // Phone actions
+  const addPhone = async () => {
+    const r = await fetch('/api/phones/register', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({nickname:nickname||undefined})});
     const data = await r.json();
-    setSheets(data);
-    loadSheetAssignments(data);
+    if (r.ok) { setNewCode(data); setNickname(''); loadPhones(); addToast('Phone added!', 'success'); }
+    else addToast(data.error || 'Failed', 'error');
   };
-  const loadPhones = async () => { const r = await fetch('/api/phones'); setPhones(await r.json()); };
-  useEffect(() => { load(); loadPhones(); }, []);
+  const deletePhone = async (id) => {
+    if (!confirm('Delete this phone?')) return;
+    await fetch(`/api/phones/${id}`, { method: 'DELETE' });
+    loadPhones(); addToast('Phone removed', 'info');
+  };
+  const pausePhone = (phoneId) => { socket.emit('dashboard:dial-pause', { phone_id: phoneId }); addToast('Pause sent', 'info'); };
+  const resumePhone = (phoneId) => { socket.emit('dashboard:dial-resume', { phone_id: phoneId }); addToast('Resume sent', 'info'); };
+  const stopPhone = (phoneId) => { socket.emit('dashboard:dial-stop', { phone_id: phoneId }); addToast('Stop sent', 'info'); setTimeout(loadAll, 1000); };
 
-  const togglePhone = (id) => {
-    setSelectedPhones(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
-  };
-  const selectAllPhones = () => {
-    setSelectedPhones(prev => prev.length === phones.length ? [] : phones.map(p=>p.id));
-  };
-
+  // Upload
   const uploadFile = async (file) => {
-    setUploading(true); setResult(null);
+    setUploading(true);
     const fd = new FormData(); fd.append('file', file);
-    if (selectedPhones.length > 0) {
-      fd.append('phone_ids', JSON.stringify(selectedPhones));
+    if (selectedUploadPhones.length > 0) {
+      fd.append('phone_ids', JSON.stringify(selectedUploadPhones));
       fd.append('mode', distMode);
     }
     const r = await fetch('/api/sheets/upload', { method: 'POST', body: fd });
     const data = await r.json();
     setUploading(false);
-    if (r.ok) { setResult(data.sheet); load(); } else { setResult({ error: data.error }); }
+    if (r.ok) { addToast(`Uploaded ${data.sheet.name} — ${data.sheet.row_count} leads`, 'success'); loadSheets(); }
+    else addToast(data.error || 'Upload failed', 'error');
   };
-
   const handleDrop = (e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); };
-  const handleDrag = (e) => { e.preventDefault(); setDragging(true); };
 
+  // Sheet actions
+  const deleteSheet = async (id) => {
+    if (!confirm('Delete this sheet and all its leads?')) return;
+    await fetch(`/api/sheets/${id}`, { method: 'DELETE' });
+    loadSheets(); addToast('Sheet deleted', 'info');
+  };
   const showPreview = async (id) => {
     const r = await fetch(`/api/sheets/${id}/leads`);
     setPreview(await r.json());
   };
 
-  const deleteSheet = async (id) => {
-    await fetch(`/api/sheets/${id}`, { method: 'DELETE' });
-    load();
-  };
-
-  return (<div>
-    {/* Phone selection for upload */}
-    <div className="card" style={{marginBottom:12}}>
-      <h2>1. Pick Phones to Assign Leads To</h2>
-      {phones.length === 0 ? <p className="info">No phones registered. Go to Phones tab to add one.</p> : <div>
-        <div style={{marginBottom:8}}>
-          <label className="check-label" style={{marginBottom:8}}>
-            <input type="checkbox" checked={selectedPhones.length === phones.length && phones.length > 0}
-              onChange={selectAllPhones} />
-            <strong>Select All</strong>
-          </label>
-          {phones.map(p => <label key={p.id} className="check-label" style={{marginBottom:6,marginLeft:8}}>
-            <input type="checkbox" checked={selectedPhones.includes(p.id)} onChange={()=>togglePhone(p.id)} />
-            {p.nickname} <span className={`badge badge-${p.connected?'online':'offline'}`} style={{marginLeft:4}}>{p.connected?'online':'offline'}</span>
-          </label>)}
-        </div>
-        {selectedPhones.length > 1 && <div>
-          <label>Distribution</label>
-          <select value={distMode} onChange={e=>setDistMode(e.target.value)} style={{maxWidth:300}}>
-            <option value="round-robin">Round Robin (split evenly)</option>
-            <option value="all-to-each">All to Each (every phone gets all leads)</option>
-          </select>
-        </div>}
-        {selectedPhones.length === 0 && <p className="info">No phones selected — leads will be uploaded but not assigned</p>}
-        {selectedPhones.length > 0 && <p style={{color:'#34d399',fontSize:13,marginTop:4}}>{selectedPhones.length} phone{selectedPhones.length>1?'s':''} selected</p>}
-      </div>}
-    </div>
-
-    {/* Upload zone */}
-    <div className="card" style={{marginBottom:12}}>
-      <h2>2. Upload Lead Sheet</h2>
-      <div className={`drop-zone ${dragging?'dragging':''}`}
-        onDrop={handleDrop} onDragOver={handleDrag} onDragLeave={()=>setDragging(false)}
-        onClick={()=>fileRef.current?.click()}>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" hidden
-          onChange={e=>e.target.files[0]&&uploadFile(e.target.files[0])} />
-        {uploading ? 'Uploading & Assigning...' : 'Drop Excel/CSV file here or click to browse'}
-      </div>
-    </div>
-
-    {result && !result.error && <div className="card" style={{borderColor:'#059669'}}>
-      <p>Uploaded <strong>{result.name}</strong> — {result.row_count} leads imported</p>
-      {result.assigned > 0 && <p style={{color:'#34d399',fontSize:13,marginTop:4}}>Assigned {result.assigned} leads to {result.phones_assigned || selectedPhones.length} phone{(result.phones_assigned||selectedPhones.length)>1?'s':''}</p>}
-      {result.assigned === 0 && selectedPhones.length === 0 && <p className="info">Not assigned to any phone yet. Use the Assign Leads tab or select phones above before uploading.</p>}
-      {result.duplicates_removed > 0 && <p className="info">{result.duplicates_removed} duplicates removed</p>}
-      {result.invalid_rows > 0 && <p className="info">{result.invalid_rows} invalid phone numbers skipped</p>}
-      <p className="info">Columns: name="{result.detected_columns?.name}", phone="{result.detected_columns?.phone}"</p>
-    </div>}
-    {result?.error && <div className="card" style={{borderColor:'#dc2626'}}><p style={{color:'#f87171'}}>{result.error}</p></div>}
-
-    <div className="card">
-      <h2>Uploaded Sheets</h2>
-      {sheets.length === 0 ? <p className="info">No sheets uploaded yet</p> :
-      <table><thead><tr><th>Name</th><th>Leads</th><th>Assigned To</th><th>Uploaded</th><th>Actions</th></tr></thead>
-      <tbody>{sheets.map(s => <tr key={s.id}>
-        <td>{s.name}</td><td>{s.row_count}</td>
-        <td>{(sheetPhones[s.id] || []).length > 0
-          ? sheetPhones[s.id].map(name => <span key={name} className="badge badge-online" style={{marginRight:4,marginBottom:2}}>{name}</span>)
-          : <span className="info">Unassigned</span>}</td>
-        <td>{new Date(s.uploaded_at).toLocaleString()}</td>
-        <td><div className="flex">
-          <button className="btn-secondary btn-sm" onClick={()=>showPreview(s.id)}>Preview</button>
-          <button className="btn-danger btn-sm" onClick={()=>deleteSheet(s.id)}>Delete</button>
-        </div></td>
-      </tr>)}</tbody></table>}
-    </div>
-
-    {preview && <div className="modal-overlay" onClick={()=>setPreview(null)}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
-        <div className="flex-between mb-16"><h2>Lead Preview</h2>
-          <button className="btn-secondary btn-sm" onClick={()=>setPreview(null)}>Close</button></div>
-        <table><thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead>
-        <tbody>{preview.slice(0,50).map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td>{l.phone}</td></tr>)}</tbody></table>
-        {preview.length > 50 && <p className="info mt-8">Showing first 50 of {preview.length}</p>}
-      </div>
-    </div>}
-  </div>);
-}
-
-function PhonesTab() {
-  const [phones, setPhones] = useState([]);
-  const [nickname, setNickname] = useState('');
-  const [newCode, setNewCode] = useState(null);
-
-  const load = async () => { const r = await fetch('/api/phones'); setPhones(await r.json()); };
-  useEffect(() => { load(); const i = setInterval(load, 5000); return () => clearInterval(i); }, []);
-
-  const addPhone = async () => {
-    const r = await fetch('/api/phones/register', { method:'POST',
-      headers:{'Content-Type':'application/json'}, body:JSON.stringify({nickname:nickname||undefined})});
-    const data = await r.json();
-    if (r.ok) { setNewCode(data); setNickname(''); load(); }
-  };
-
-  const deletePhone = async (id) => {
-    await fetch(`/api/phones/${id}`, { method: 'DELETE' });
-    load();
-  };
-
-  return (<div>
-    <div className="card">
-      <h2>Add Phone</h2>
-      <div className="flex">
-        <input placeholder="Phone nickname (optional)" value={nickname} onChange={e=>setNickname(e.target.value)}
-          style={{marginBottom:0}} onKeyDown={e=>e.key==='Enter'&&addPhone()} />
-        <button className="btn-primary" onClick={addPhone}>Add Phone</button>
-      </div>
-      {newCode && <div style={{marginTop:16}}>
-        <p>Phone <strong>{newCode.nickname}</strong> created. Enter this pairing code in the app:</p>
-        <div className="pairing-code">{newCode.pairing_code}</div>
-      </div>}
-    </div>
-
-    <div className="card">
-      <h2>Registered Phones ({phones.length})</h2>
-      {phones.length === 0 ? <p className="info">No phones registered</p> :
-      <table><thead><tr><th>Nickname</th><th>Status</th><th>Pairing Code</th><th>Battery</th><th>Last Seen</th><th>Actions</th></tr></thead>
-      <tbody>{phones.map(p => <tr key={p.id}>
-        <td><strong>{p.nickname}</strong></td>
-        <td><span className={`badge badge-${p.connected?'online':'offline'}`}>{p.connected?'online':'offline'}</span></td>
-        <td>{p.pairing_code ? <span style={{fontFamily:'monospace',color:'#60a5fa'}}>{p.pairing_code}</span> : <span className="info">paired</span>}</td>
-        <td>{p.battery_level != null ? `${p.battery_level}%` : '-'}</td>
-        <td className="info">{p.last_seen ? new Date(p.last_seen).toLocaleString() : 'Never'}</td>
-        <td><button className="btn-danger btn-sm" onClick={()=>deletePhone(p.id)}>Delete</button></td>
-      </tr>)}</tbody></table>}
-    </div>
-  </div>);
-}
-
-function AssignTab() {
-  const [sheets, setSheets] = useState([]);
-  const [phones, setPhones] = useState([]);
-  const [selectedSheet, setSelectedSheet] = useState('');
-  const [selectedPhones, setSelectedPhones] = useState([]);
-  const [mode, setMode] = useState('round-robin');
-  const [result, setResult] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/sheets').then(r=>r.json()).then(setSheets);
-    fetch('/api/phones').then(r=>r.json()).then(setPhones);
-  }, []);
-
-  const togglePhone = (id) => {
-    setSelectedPhones(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
-  };
-
-  const assign = async () => {
-    setResult(null);
+  // Inline assign for a sheet
+  const assignSheetToPhone = async (sheetId) => {
+    const phoneId = sheetAssignPhone[sheetId];
+    if (!phoneId) return addToast('Select a phone first', 'error');
     const r = await fetch('/api/assign', { method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sheet_id:selectedSheet, phone_ids:selectedPhones, mode})});
+      body:JSON.stringify({sheet_id: sheetId, phone_ids: [phoneId], mode: 'all-to-each'})});
     const data = await r.json();
-    setResult(r.ok ? `Assigned ${data.assigned} leads` : data.error);
+    if (r.ok) { addToast(`Assigned ${data.assigned} leads!`, 'success'); loadSheets(); }
+    else addToast(data.error || 'Assign failed', 'error');
+  };
+
+  // Call Log
+  const showCallLog = async () => {
+    setCallLogModal(true);
+    let all = [];
+    for (const p of phones) {
+      try {
+        const r = await fetch(`/api/phones/${p.id}/assignments?all=true`);
+        const rows = await r.json();
+        all = all.concat(rows.map(a => ({...a, phone_name: p.nickname})));
+      } catch(e) {}
+    }
+    setCallLogs(all);
+  };
+
+  const toggleUploadPhone = (id) => {
+    setSelectedUploadPhones(prev => prev.includes(id) ? prev.filter(p=>p!==id) : [...prev, id]);
   };
 
   return (<div>
-    <div className="card">
-      <h2>Assign Leads to Phones</h2>
-      <label>Select Sheet</label>
-      <select value={selectedSheet} onChange={e=>setSelectedSheet(e.target.value)}>
-        <option value="">-- Choose a sheet --</option>
-        {sheets.map(s => <option key={s.id} value={s.id}>{s.name} ({s.row_count} leads)</option>)}
-      </select>
-
-      <label>Select Phones</label>
-      <div style={{marginBottom:12}}>
-        {phones.map(p => <label key={p.id} className="check-label" style={{marginBottom:6}}>
-          <input type="checkbox" checked={selectedPhones.includes(p.id)} onChange={()=>togglePhone(p.id)} />
-          {p.nickname} {p.connected ? '(online)' : '(offline)'}
-        </label>)}
-        {phones.length === 0 && <p className="info">No phones registered</p>}
-      </div>
-
-      <label>Distribution Mode</label>
-      <select value={mode} onChange={e=>setMode(e.target.value)}>
-        <option value="round-robin">Round Robin (split evenly)</option>
-        <option value="all-to-each">All to Each (every phone gets all leads)</option>
-      </select>
-
-      <button className="btn-primary mt-8" onClick={assign}
-        disabled={!selectedSheet || selectedPhones.length===0}>Assign Leads</button>
-      {result && <p className="mt-8" style={{color: typeof result === 'string' && result.includes('Assigned') ? '#34d399' : '#f87171'}}>{result}</p>}
-    </div>
-  </div>);
-}
-
-function CallLogTab() {
-  const [phones, setPhones] = useState([]);
-  const [phoneId, setPhoneId] = useState('all');
-  const [assignments, setAssignments] = useState([]);
-
-  useEffect(() => { fetch('/api/phones').then(r=>r.json()).then(setPhones); }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      if (phoneId === 'all') {
-        // Load from all phones
-        const phonesData = await fetch('/api/phones').then(r=>r.json());
-        let all = [];
-        for (const p of phonesData) {
-          const r = await fetch(`/api/phones/${p.id}/assignments?all=true`);
-          const rows = await r.json();
-          all = all.concat(rows.map(a => ({...a, phone_name: p.nickname})));
-        }
-        setAssignments(all);
-      } else {
-        const r = await fetch(`/api/phones/${phoneId}/assignments?all=true`);
-        const phone = phones.find(p=>p.id===phoneId);
-        const rows = await r.json();
-        setAssignments(rows.map(a => ({...a, phone_name: phone?.nickname})));
-      }
-    };
-    load();
-  }, [phoneId, phones]);
-
-  useEffect(() => {
-    const handler = () => {
-      // Reload on call updates
-      setPhoneId(prev => { setTimeout(() => setPhoneId(prev), 0); return prev; });
-    };
-    socket.on('server:call-update', handler);
-    return () => socket.off('server:call-update', handler);
-  }, []);
-
-  const today = new Date().toISOString().slice(0,10);
-
-  return (<div>
-    <div className="card">
-      <div className="flex-between mb-16">
-        <h2>Call Log</h2>
-        <div className="flex">
-          <select value={phoneId} onChange={e=>setPhoneId(e.target.value)} style={{width:200,marginBottom:0}}>
-            <option value="all">All Phones</option>
-            {phones.map(p => <option key={p.id} value={p.id}>{p.nickname}</option>)}
-          </select>
-          <a href={`/api/export/${today}`} download><button className="btn-secondary btn-sm">Export Today</button></a>
+    {/* HEADER */}
+    <div className="header">
+      <div className="header-brand">
+        <div className="header-logo">AD</div>
+        <div>
+          <div className="header-title">AutoDialer</div>
+          <div className="header-sub">Command Center</div>
         </div>
       </div>
-      <table><thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Duration</th><th>Attempts</th><th>Phone Device</th><th>Notes</th></tr></thead>
-      <tbody>{assignments.map(a => <tr key={a.id}>
-        <td>{a.lead_name}</td><td>{a.lead_phone}</td>
-        <td><span className={`badge badge-${a.call_status}`}>{a.call_status}</span></td>
-        <td>{a.call_duration > 0 ? `${a.call_duration}s` : '-'}</td>
-        <td>{a.attempts}</td>
-        <td>{a.phone_name}</td>
-        <td className="info">{a.notes || '-'}</td>
-      </tr>)}</tbody></table>
-      {assignments.length === 0 && <p className="info" style={{textAlign:'center',padding:20}}>No assignments yet</p>}
+      <div className="header-right">
+        <div className="live-indicator">
+          <div className="live-dot" />
+          <span className="live-text">Live</span>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={showCallLog}>Call Log</button>
+      </div>
+    </div>
+
+    <div className="container">
+
+      {/* ====== UPLOAD (TOP) ====== */}
+      <div className="card full-width" style={{marginBottom: 22}}>
+        <div className="card-header">
+          <div className="card-title">
+            <div className="card-icon accent">&#128228;</div>
+            Upload Lead Sheet
+          </div>
+          {uploading && <span className="badge badge-dialing">Uploading...</span>}
+        </div>
+
+        {phones.length > 0 && <div className="mb-16">
+          <label>Auto-assign to phones on upload</label>
+          <div className="phone-select-grid">
+            {phones.map(p => (
+              <div key={p.id}
+                className={`phone-chip ${selectedUploadPhones.includes(p.id)?'selected':''}`}
+                onClick={()=>toggleUploadPhone(p.id)}>
+                <span className={`chip-dot ${p.connected?'on':'off'}`} />
+                {p.nickname}
+              </div>
+            ))}
+          </div>
+          {selectedUploadPhones.length > 1 && <div className="flex" style={{marginTop:2}}>
+            <label style={{margin:0,marginRight:4,fontSize:10}}>Mode:</label>
+            <select value={distMode} onChange={e=>setDistMode(e.target.value)} style={{maxWidth:200,padding:'5px 10px',fontSize:12}}>
+              <option value="round-robin">Round Robin</option>
+              <option value="all-to-each">All to Each</option>
+            </select>
+          </div>}
+          {selectedUploadPhones.length > 0 && <p style={{fontSize:11,color:'var(--accent-light)',marginTop:6,fontWeight:600}}>
+            {selectedUploadPhones.length} phone{selectedUploadPhones.length>1?'s':''} selected
+          </p>}
+        </div>}
+
+        <div className={`drop-zone ${dragging?'dragging':''}`}
+          onDrop={handleDrop}
+          onDragOver={e=>{e.preventDefault();setDragging(true)}}
+          onDragLeave={()=>setDragging(false)}
+          onClick={()=>fileRef.current?.click()}>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" hidden
+            onChange={e=>{if(e.target.files[0])uploadFile(e.target.files[0]); e.target.value='';}} />
+          <div className="drop-icon">&#128203;</div>
+          <div className="drop-text">{uploading ? 'Processing...' : 'Drop your Excel or CSV file here'}</div>
+          <div className="drop-sub">or click to browse — .xlsx, .xls, .csv</div>
+        </div>
+      </div>
+
+      {/* ====== TWO COLUMNS ====== */}
+      <div className="main-grid">
+
+        {/* LEFT: Phones */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <div className="card-icon cyan">&#128241;</div>
+              Phones
+            </div>
+            <span className="badge badge-offline" style={{fontSize:9}}>{phones.length} registered</span>
+          </div>
+
+          <div className="flex mb-16">
+            <input placeholder="Enter phone nickname..." value={nickname}
+              onChange={e=>setNickname(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&addPhone()}
+              style={{marginBottom:0}} />
+            <button className="btn btn-primary" onClick={addPhone}>Add</button>
+          </div>
+
+          {newCode && <div style={{marginBottom:18,padding:18,background:'var(--bg-card-inner)',borderRadius:'var(--radius-sm)',border:'1px solid var(--border-subtle)'}}>
+            <p style={{fontSize:13,color:'var(--text-secondary)',marginBottom:4}}>
+              <strong style={{color:'var(--text-primary)'}}>{newCode.nickname}</strong> created! Enter this code in the app:
+            </p>
+            <div className="pairing-code">{newCode.pairing_code}</div>
+          </div>}
+
+          <div className="phone-list">
+            {phones.map(p => {
+              const status = p.dialer_running ? (p.dialer_paused ? 'paused' : 'dialing') : (p.connected ? 'online' : 'offline');
+              const isOn = p.connected;
+              return (<div className="phone-item" key={p.id}>
+                <div className={`phone-avatar ${isOn?'online':'offline'}`}>&#128242;</div>
+                <div className="phone-info">
+                  <div className="phone-name">{p.nickname}</div>
+                  <div className="phone-meta">
+                    {p.pairing_code && !p.connected
+                      ? <span style={{fontFamily:'monospace',color:'var(--accent-light)',fontWeight:600}}>Code: {p.pairing_code}</span>
+                      : <>
+                        {p.battery_level != null && <span>Bat {p.battery_level}%</span>}
+                        {p.battery_level != null && p.signal_strength != null && <span> &middot; </span>}
+                        {p.signal_strength != null && <span>Sig {p.signal_strength}%</span>}
+                        {p.battery_level == null && p.signal_strength == null && isOn && <span>Connected</span>}
+                      </>
+                    }
+                  </div>
+                </div>
+                <span className={`badge badge-${status}`}>{status}</span>
+                <div className="phone-actions">
+                  {status === 'dialing' && <>
+                    <button className="btn btn-warning btn-xs" onClick={()=>pausePhone(p.id)}>Pause</button>
+                    <button className="btn btn-danger btn-xs" onClick={()=>stopPhone(p.id)}>Stop</button>
+                  </>}
+                  {status === 'paused' && <>
+                    <button className="btn btn-success btn-xs" onClick={()=>resumePhone(p.id)}>Resume</button>
+                    <button className="btn btn-danger btn-xs" onClick={()=>stopPhone(p.id)}>Stop</button>
+                  </>}
+                  <button className="btn btn-ghost btn-xs" onClick={()=>deletePhone(p.id)} title="Delete"
+                    style={{color:'var(--red)',borderColor:'rgba(244,63,94,0.18)'}}>&#128465;</button>
+                </div>
+              </div>);
+            })}
+            {phones.length === 0 && <div style={{textAlign:'center',padding:'32px 20px',color:'var(--text-muted)'}}>
+              <div style={{fontSize:32,marginBottom:8,opacity:0.4}}>&#128241;</div>
+              <div style={{fontSize:13}}>No phones yet — add one above</div>
+            </div>}
+          </div>
+        </div>
+
+        {/* RIGHT: Sheets — each with inline assign dropdown */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <div className="card-icon green">&#128196;</div>
+              Lead Sheets
+            </div>
+            <span className="badge badge-offline" style={{fontSize:9}}>{sheets.length} sheets</span>
+          </div>
+
+          <div className="sheet-list">
+            {sheets.map(s => {
+              const total = s.row_count || 0;
+              const assignedPhones = sheetPhones[s.id] || [];
+              return (<div className="sheet-item" key={s.id}>
+                {/* LEFT: info */}
+                <div className="sheet-left">
+                  <div className="sheet-top">
+                    <div className="sheet-name">{s.name}</div>
+                    <div className="sheet-date">{new Date(s.uploaded_at).toLocaleDateString()}</div>
+                  </div>
+                  <div className="sheet-stats">
+                    <span className="sheet-stat"><strong>{total}</strong> leads</span>
+                    {assignedPhones.length > 0 && assignedPhones.map(name =>
+                      <span key={name} className="badge badge-online" style={{padding:'2px 9px',fontSize:9}}>{name}</span>
+                    )}
+                    {assignedPhones.length === 0 && <span className="badge badge-offline" style={{padding:'2px 9px',fontSize:9}}>Unassigned</span>}
+                  </div>
+                  <div className="flex" style={{marginTop:8,gap:5}}>
+                    <button className="btn btn-ghost btn-xs" onClick={()=>showPreview(s.id)}>View Leads</button>
+                    <button className="btn btn-danger btn-xs" onClick={()=>deleteSheet(s.id)}>Delete</button>
+                  </div>
+                </div>
+
+                {/* RIGHT: assign dropdown */}
+                <div className="sheet-assign">
+                  <label style={{margin:0,marginBottom:4,fontSize:9}}>Assign to Phone</label>
+                  <select
+                    value={sheetAssignPhone[s.id] || ''}
+                    onChange={e => setSheetAssignPhone(prev => ({...prev, [s.id]: e.target.value}))}
+                  >
+                    <option value="">Select phone...</option>
+                    {phones.map(p => (
+                      <option key={p.id} value={p.id}>{p.nickname} {p.connected ? '(online)' : '(offline)'}</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-primary btn-sm btn-full"
+                    disabled={!sheetAssignPhone[s.id]}
+                    onClick={()=>assignSheetToPhone(s.id)}
+                    style={{marginTop:2}}>
+                    Assign
+                  </button>
+                </div>
+              </div>);
+            })}
+            {sheets.length === 0 && <div style={{textAlign:'center',padding:'32px 20px',color:'var(--text-muted)'}}>
+              <div style={{fontSize:32,marginBottom:8,opacity:0.4}}>&#128196;</div>
+              <div style={{fontSize:13}}>No sheets uploaded yet</div>
+            </div>}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Preview Modal */}
+    {preview && <div className="modal-overlay" onClick={()=>setPreview(null)}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">Lead Preview</div>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setPreview(null)}>Close</button>
+        </div>
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Phone</th></tr></thead>
+          <tbody>{preview.slice(0,50).map((l,i) => <tr key={l.id}><td>{i+1}</td><td>{l.name}</td><td style={{fontFamily:'monospace',fontSize:12}}>{l.phone}</td></tr>)}</tbody>
+        </table>
+        {preview.length > 50 && <p className="info mt-8">Showing 50 of {preview.length}</p>}
+      </div>
+    </div>}
+
+    {/* Call Log Modal */}
+    {callLogModal && <div className="modal-overlay" onClick={()=>setCallLogModal(false)}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:800}}>
+        <div className="modal-header">
+          <div className="modal-title">Call Log</div>
+          <div className="flex">
+            <a href={`/api/export/${new Date().toISOString().slice(0,10)}`} download>
+              <button className="btn btn-ghost btn-sm">Export CSV</button>
+            </a>
+            <button className="btn btn-ghost btn-sm" onClick={()=>setCallLogModal(false)}>Close</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Duration</th><th>Device</th></tr></thead>
+          <tbody>{callLogs.slice(0,100).map(a => <tr key={a.id}>
+            <td>{a.lead_name}</td>
+            <td style={{fontFamily:'monospace',fontSize:12}}>{a.lead_phone}</td>
+            <td><span className={`badge badge-${a.call_status}`}>{a.call_status}</span></td>
+            <td>{a.call_duration > 0 ? `${a.call_duration}s` : '-'}</td>
+            <td>{a.phone_name}</td>
+          </tr>)}</tbody>
+        </table>
+        {callLogs.length === 0 && <p className="info" style={{textAlign:'center',padding:24}}>No calls yet</p>}
+        {callLogs.length > 100 && <p className="info mt-8">Showing first 100</p>}
+      </div>
+    </div>}
+
+    {/* Toasts */}
+    <div className="toast-container">
+      {toasts.map(t => <div key={t.id} className={`toast toast-${t.type}`}>{t.msg}</div>)}
     </div>
   </div>);
 }
