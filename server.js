@@ -81,7 +81,7 @@ async function main() {
 
   // Seed defaults
   const defaultSettings = {
-    pre_call_delay: '1', call_gap: '5', max_retries: '2',
+    pre_call_delay: '0', call_gap: '0', max_retries: '2',
     work_hours_start: '09:00', work_hours_end: '20:00', work_hours_enabled: 'false',
     auto_assign_phone_id: ''
   };
