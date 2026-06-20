@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Call Blocker</string>
+    <string name="tagline">Automatically rejects incoming calls from numbers starting with your chosen prefix. Defaults to 140 — India\'s telemarketing series.</string>
+    <string name="enable_blocking">Block matching calls</string>
+    <string name="prefix_label">Block numbers starting with</string>
+    <string name="prefix_hint">140</string>
+    <string name="save">Save</string>
+    <string name="prefix_saved">Blocking numbers starting with %1$s</string>
+    <string name="grant_role">Set as call-screening app</string>
+    <string name="blocked_count">Blocked so far: %1$d</string>
+    <string name="recent_blocked">Recently blocked</string>
+    <string name="clear">Clear</string>
+    <string name="log_empty">No calls blocked yet.</string>
+    <string name="role_status_active">✓ Active — this app is screening your calls.</string>
+    <string name="role_status_inactive">⚠ Not active. Tap below and allow this app to screen calls.</string>
+    <string name="role_status_legacy">Running in legacy mode (Android 9 and below) — screening is automatic.</string>
+    <string name="role_granted">Call screening enabled.</string>
+    <string name="role_denied">Permission denied — calls cannot be blocked until you allow screening.</string>
+</resources>
