@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#12101c" />
+<title>Impostor — Party Game</title>
+<style>
+  :root {
+    --bg: #12101c; --panel: #1e1b2e; --panel2: #272338;
+    --accent: #8b5cf6; --accent2: #f43f5e; --good: #22c55e; --text: #ece9f5;
+    --muted: #9a94b8; --line: #332e47;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #241f3a 0%, var(--bg) 60%);
+    color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100%; padding: 18px; display: flex; justify-content: center;
+  }
+  .app { width: 100%; max-width: 440px; }
+  h1 { font-size: 30px; margin: 8px 0 2px; letter-spacing: -.5px; }
+  h1 .i { color: var(--accent2); }
+  .tag { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+  input, select {
+    width: 100%; padding: 14px; font-size: 17px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text); outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  #codeInput { text-transform: uppercase; letter-spacing: 6px; font-weight: 700; text-align: center; }
+  button {
+    width: 100%; padding: 15px; font-size: 17px; font-weight: 700; border: 0;
+    border-radius: 12px; background: var(--accent); color: white; margin-top: 12px; cursor: pointer;
+    transition: transform .05s ease, opacity .2s;
+  }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .4; }
+  button.secondary { background: var(--panel2); border: 1px solid var(--line); }
+  button.danger { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); }
+  .row { display: flex; gap: 10px; }
+  .row button { margin-top: 0; }
+  .hidden { display: none !important; }
+  .center { text-align: center; }
+  .code-badge {
+    font-size: 34px; font-weight: 800; letter-spacing: 8px; color: var(--accent);
+    background: var(--panel2); border-radius: 14px; padding: 10px; text-align: center; margin: 6px 0;
+  }
+  .players { list-style: none; padding: 0; margin: 8px 0 0; }
+  .players li {
+    display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin-bottom: 8px;
+    background: var(--panel2); border-radius: 12px; font-size: 16px;
+  }
+  .players li.off { opacity: .4; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); flex: 0 0 auto; }
+  .dot.off { background: #666; }
+  .pill { margin-left: auto; font-size: 12px; color: var(--muted); background: #00000030; padding: 3px 9px; border-radius: 20px; }
+  .pill.host { color: #fde047; }
+  .pill.done { color: var(--good); }
+  .word-card { text-align: center; padding: 26px 18px; }
+  .word-card .role { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .word-card .word { font-size: 40px; font-weight: 800; margin: 10px 0; }
+  .word-card.impostor { border: 1px solid var(--accent2); }
+  .word-card.impostor .word { color: var(--accent2); font-size: 30px; }
+  .cat { color: var(--accent); font-weight: 700; }
+  .clue-list { list-style: none; padding: 0; margin: 0; }
+  .clue-list li { display: flex; justify-content: space-between; padding: 12px 14px; background: var(--panel2); border-radius: 12px; margin-bottom: 8px; }
+  .clue-list .nm { color: var(--muted); }
+  .clue-list .cl { font-weight: 700; font-size: 17px; }
+  .turn-banner { text-align: center; padding: 14px; border-radius: 12px; background: var(--panel2); margin-bottom: 12px; font-size: 16px; }
+  .turn-banner.you { background: linear-gradient(120deg, var(--accent), #6d28d9); font-weight: 700; }
+  .vote-btn { text-align: left; background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+  .vote-btn.sel { border-color: var(--accent); background: #2e2748; }
+  .result-word { font-size: 30px; font-weight: 800; text-align: center; margin: 6px 0; }
+  .banner { text-align: center; padding: 18px; border-radius: 14px; font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+  .banner.crew { background: #14532d; color: #86efac; }
+  .banner.impostor { background: #4c0519; color: #fda4af; }
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: #000000dd; color: #fff; padding: 11px 18px; border-radius: 30px; font-size: 14px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; max-width: 90%;
+  }
+  .toast.show { opacity: 1; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .score { margin-left: auto; font-weight: 800; color: #fde047; }
+  .hint { font-size: 13px; color: var(--muted); text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Impost<span class="i">o</span>r</h1>
+  <div class="tag">One of you is faking it. Find them.</div>
+
+  <!-- HOME -->
+  <div id="screen-home">
+    <div class="card">
+      <label>Your name</label>
+      <input id="nameInput" maxlength="20" placeholder="e.g. Alex" autocomplete="off" />
+      <button id="createBtn">Create a room</button>
+    </div>
+    <div class="card">
+      <label>Join with a code</label>
+      <input id="codeInput" maxlength="4" placeholder="CODE" autocomplete="off" />
+      <button id="joinBtn" class="secondary">Join room</button>
+    </div>
+    <div class="hint">Play with 3–10 friends, each on their own phone.</div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="hidden">
+    <div class="card center">
+      <div class="muted">Room code — share it</div>
+      <div class="code-badge" id="lobbyCode">----</div>
+    </div>
+    <div class="card">
+      <div class="muted">Players (<span id="playerCount">0</span>)</div>
+      <ul class="players" id="lobbyPlayers"></ul>
+    </div>
+    <div class="card" id="hostControls">
+      <label>Category</label>
+      <select id="categorySelect"><option value="">🎲 Surprise me</option></select>
+      <label>Impostors</label>
+      <select id="impostorSelect"><option value="1">1 impostor</option><option value="2">2 impostors</option></select>
+      <button id="startBtn">Start game</button>
+      <div class="hint" id="startHint">Need at least 3 players.</div>
+    </div>
+    <div class="card center hidden" id="waitHost"><div class="muted">Waiting for the host to start…</div></div>
+    <button class="danger" id="leaveBtn">Leave room</button>
+  </div>
+
+  <!-- CLUE -->
+  <div id="screen-clue" class="hidden">
+    <div class="card word-card" id="wordCard">
+      <div class="role" id="roleLabel">Your word</div>
+      <div class="word" id="wordText">—</div>
+      <div class="muted">Category: <span class="cat" id="clueCat"></span></div>
+    </div>
+    <div class="turn-banner" id="turnBanner">…</div>
+    <div class="card hidden" id="clueInputCard">
+      <label>Your one-word clue (say it out loud too!)</label>
+      <input id="clueInput" maxlength="24" placeholder="one word" autocomplete="off" />
+      <button id="clueBtn">Submit clue</button>
+    </div>
+    <div class="card">
+      <div class="muted">Clues so far</div>
+      <ul class="clue-list" id="clueList"></ul>
+    </div>
+  </div>
+
+  <!-- VOTE -->
+  <div id="screen-vote" class="hidden">
+    <div class="card">
+      <div class="center" style="font-size:19px;font-weight:700;margin-bottom:4px">Who is the impostor?</div>
+      <div class="muted center" style="margin-bottom:12px">Word category: <span class="cat" id="voteCat"></span></div>
+      <ul class="clue-list" id="voteClueList"></ul>
+    </div>
+    <div class="card" id="voteButtons"></div>
+    <div class="card center hidden" id="votedMsg"><div class="muted">Vote locked in. Waiting for others…</div></div>
+    <button class="secondary hidden" id="forceRevealBtn">Reveal now (host)</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="screen-results" class="hidden">
+    <div class="banner" id="resultBanner">—</div>
+    <div class="card center">
+      <div class="muted">The secret word was</div>
+      <div class="result-word" id="resultWord">—</div>
+      <div class="muted">The impostor was</div>
+      <div class="result-word" style="color:var(--accent2)" id="resultImpostor">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">Votes</div>
+      <ul class="clue-list" id="resultVotes"></ul>
+    </div>
+    <div class="card">
+      <div class="muted">Scoreboard</div>
+      <ul class="players" id="scoreBoard"></ul>
+    </div>
+    <div class="card hidden" id="nextHostCard"><button id="nextBtn">Next round</button></div>
+    <div class="card center hidden" id="nextWaitCard"><div class="muted">Waiting for host to start the next round…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function () {
+  const socket = io('/game', { transports: ['websocket', 'polling'] });
+  let me = { code: null, playerId: null };
+  let myRole = null; // { role, word, category }
+
+  // ---- helpers ----
+  const $ = id => document.getElementById(id);
+  const screens = ['home', 'lobby', 'clue', 'vote', 'results'];
+  function show(name) { screens.forEach(s => $('screen-' + s).classList.toggle('hidden', s !== name)); }
+  let toastT;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+  function saveSession() { localStorage.setItem('impostor', JSON.stringify(me)); }
+  function clearSession() { localStorage.removeItem('impostor'); me = { code: null, playerId: null }; }
+
+  // ---- home actions ----
+  $('nameInput').value = localStorage.getItem('impostorName') || '';
+  $('nameInput').addEventListener('input', e => localStorage.setItem('impostorName', e.target.value));
+
+  $('createBtn').onclick = () => {
+    const nickname = $('nameInput').value.trim();
+    if (!nickname) return toast('Enter your name first');
+    socket.emit('game:create', { nickname }, res => {
+      if (!res?.ok) return toast(res?.error || 'Could not create room');
+      me = { code: res.code, playerId: res.playerId }; saveSession();
+    });
+  };
+  $('joinBtn').onclick = () => {
+    const nickname = $('nameInput').value.trim();
+    const code = $('codeInput').value.trim().toUpperCase();
+    if (!nickname) return toast('Enter your name first');
+    if (code.length !== 4) return toast('Enter the 4-letter code');
+    socket.emit('game:join', { nickname, code }, res => {
+      if (!res?.ok) return toast(res?.error || 'Could not join');
+      me = { code: res.code, playerId: res.playerId }; saveSession();
+    });
+  };
+  $('codeInput').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+
+  $('leaveBtn').onclick = () => { socket.emit('game:leave'); clearSession(); show('home'); };
+
+  // ---- host lobby controls ----
+  $('startBtn').onclick = () => {
+    socket.emit('game:start', {
+      category: $('categorySelect').value,
+      impostorCount: parseInt($('impostorSelect').value, 10) || 1,
+    }, res => { if (!res?.ok) toast(res?.error || 'Could not start'); });
+  };
+
+  // ---- clue phase ----
+  $('clueBtn').onclick = () => {
+    const clue = $('clueInput').value.trim();
+    if (!clue) return toast('Type a one-word clue');
+    socket.emit('game:clue', { clue }, res => {
+      if (!res?.ok) return toast(res?.error || 'Could not submit');
+      $('clueInput').value = '';
+    });
+  };
+
+  // ---- vote phase ----
+  let selectedVote = null;
+  $('forceRevealBtn').onclick = () => socket.emit('game:force-reveal', {}, () => {});
+
+  // ---- next round ----
+  $('nextBtn').onclick = () => socket.emit('game:next-round', {}, res => { if (!res?.ok) toast(res?.error || 'Error'); });
+
+  // ---- socket lifecycle ----
+  socket.on('connect', () => {
+    const saved = localStorage.getItem('impostor');
+    if (saved) {
+      const s = JSON.parse(saved);
+      if (s.code && s.playerId) {
+        socket.emit('game:rejoin', s, res => {
+          if (res?.ok) { me = s; }
+          else { clearSession(); show('home'); }
+        });
+      }
+    }
+  });
+
+  socket.on('game:role', role => { myRole = role; });
+
+  socket.on('game:room', room => {
+    if (!me.playerId || !room.players.some(p => p.id === me.playerId)) return;
+    const amHost = room.hostId === me.playerId;
+
+    if (room.phase === 'lobby') renderLobby(room, amHost);
+    else if (room.phase === 'clue') renderClue(room, amHost);
+    else if (room.phase === 'vote') renderVote(room, amHost);
+    else if (room.phase === 'results') renderResults(room, amHost);
+  });
+
+  socket.on('disconnect', () => toast('Reconnecting…'));
+
+  // ---- renderers ----
+  function renderPlayerList(el, players, opts = {}) {
+    el.innerHTML = '';
+    players.forEach(p => {
+      const li = document.createElement('li');
+      if (!p.connected) li.classList.add('off');
+      const dot = document.createElement('span'); dot.className = 'dot' + (p.connected ? '' : ' off');
+      const nm = document.createElement('span'); nm.textContent = p.nickname + (p.id === me.playerId ? ' (you)' : '');
+      li.appendChild(dot); li.appendChild(nm);
+      if (opts.showScore) { const s = document.createElement('span'); s.className = 'score'; s.textContent = p.score; li.appendChild(s); }
+      else {
+        if (p.isHost) { const t = document.createElement('span'); t.className = 'pill host'; t.textContent = 'HOST'; li.appendChild(t); }
+        if (opts.doneKey && p[opts.doneKey]) { const t = document.createElement('span'); t.className = 'pill done'; t.textContent = opts.doneLabel; li.appendChild(t); }
+      }
+      el.appendChild(li);
+    });
+  }
+
+  let catsFilled = false;
+  function renderLobby(room, amHost) {
+    show('lobby');
+    $('lobbyCode').textContent = room.code;
+    $('playerCount').textContent = room.players.length;
+    renderPlayerList($('lobbyPlayers'), room.players);
+
+    if (!catsFilled) {
+      const sel = $('categorySelect');
+      room.categories.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+      catsFilled = true;
+    }
+    $('hostControls').classList.toggle('hidden', !amHost);
+    $('waitHost').classList.toggle('hidden', amHost);
+    if (amHost) {
+      const enough = room.players.filter(p => p.connected).length >= 3;
+      $('startBtn').disabled = !enough;
+      $('startHint').textContent = enough ? 'Everyone in? Hit start!' : 'Need at least 3 players.';
+      // Cap impostor options to players-2
+      const maxImp = Math.max(1, room.players.filter(p => p.connected).length - 2);
+      [...$('impostorSelect').options].forEach(o => o.disabled = parseInt(o.value, 10) > maxImp);
+    }
+  }
+
+  function renderClue(room, amHost) {
+    show('clue');
+    // role card
+    const wc = $('wordCard');
+    if (myRole) {
+      if (myRole.role === 'impostor') {
+        wc.classList.add('impostor');
+        $('roleLabel').textContent = '🕵️ You are the impostor';
+        $('wordText').textContent = "You don't know the word";
+        $('wordText').style.fontSize = '22px';
+      } else {
+        wc.classList.remove('impostor');
+        $('roleLabel').textContent = 'Your secret word';
+        $('wordText').textContent = myRole.word;
+        $('wordText').style.fontSize = '40px';
+      }
+      $('clueCat').textContent = myRole.category;
+    }
+    // whose turn
+    const turnPid = room.turnOrder[room.currentTurnIndex];
+    const myTurn = turnPid === me.playerId;
+    const turnName = (room.players.find(p => p.id === turnPid) || {}).nickname || '';
+    const tb = $('turnBanner');
+    if (myTurn) { tb.textContent = "👉 Your turn — give a clue!"; tb.classList.add('you'); }
+    else { tb.textContent = `Waiting for ${turnName} to give a clue…`; tb.classList.remove('you'); }
+    $('clueInputCard').classList.toggle('hidden', !myTurn);
+    renderClues($('clueList'), room.clues);
+  }
+
+  function renderClues(el, clues) {
+    el.innerHTML = '';
+    if (!clues || !clues.length) { el.innerHTML = '<li class="nm">No clues yet…</li>'; return; }
+    clues.forEach(c => {
+      const li = document.createElement('li');
+      const n = document.createElement('span'); n.className = 'nm'; n.textContent = c.nickname;
+      const v = document.createElement('span'); v.className = 'cl'; v.textContent = c.clue;
+      li.appendChild(n); li.appendChild(v); el.appendChild(li);
+    });
+  }
+
+  function renderVote(room, amHost) {
+    show('vote');
+    $('voteCat').textContent = room.category;
+    renderClues($('voteClueList'), room.clues);
+    const iVoted = room.players.find(p => p.id === me.playerId)?.hasVoted;
+    const vb = $('voteButtons');
+    vb.classList.toggle('hidden', iVoted);
+    $('votedMsg').classList.toggle('hidden', !iVoted);
+    $('forceRevealBtn').classList.toggle('hidden', !amHost);
+    if (!iVoted) {
+      vb.innerHTML = '';
+      room.players.filter(p => p.id !== me.playerId).forEach(p => {
+        const b = document.createElement('button');
+        b.className = 'vote-btn' + (selectedVote === p.id ? ' sel' : '');
+        b.textContent = p.nickname + (p.hasVoted ? '  ✓ voted' : '');
+        b.onclick = () => {
+          selectedVote = p.id;
+          socket.emit('game:vote', { target: p.id }, res => { if (!res?.ok) toast(res?.error || 'Error'); });
+        };
+        vb.appendChild(b);
+      });
+    }
+  }
+
+  function renderResults(room, amHost) {
+    show('results');
+    selectedVote = null;
+    const r = room.results;
+    const crewWon = r.winner === 'crew';
+    const banner = $('resultBanner');
+    banner.className = 'banner ' + (crewWon ? 'crew' : 'impostor');
+    banner.textContent = crewWon ? '✅ Crew wins!' : '🕵️ Impostor wins!';
+    $('resultWord').textContent = r.word;
+    $('resultImpostor').textContent = r.impostorNames.join(', ');
+
+    const rv = $('resultVotes'); rv.innerHTML = '';
+    r.tally.forEach(t => {
+      const li = document.createElement('li');
+      const n = document.createElement('span'); n.className = 'nm'; n.textContent = t.nickname;
+      const v = document.createElement('span'); v.className = 'cl'; v.textContent = t.count + ' vote' + (t.count === 1 ? '' : 's');
+      li.appendChild(n); li.appendChild(v); rv.appendChild(li);
+    });
+    if (r.tie) { const li = document.createElement('li'); li.className = 'nm'; li.textContent = 'Tie vote — impostor escapes!'; rv.appendChild(li); }
+
+    const sorted = [...room.players].sort((a, b) => b.score - a.score);
+    renderPlayerList($('scoreBoard'), sorted, { showScore: true });
+
+    $('nextHostCard').classList.toggle('hidden', !amHost);
+    $('nextWaitCard').classList.toggle('hidden', amHost);
+  }
+})();
+</script>
+</body>
+</html>
