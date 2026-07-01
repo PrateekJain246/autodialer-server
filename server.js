@@ -106,6 +106,10 @@ async function main() {
   app.use(express.json());
   app.use(express.static(path.join(__dirname, 'public')));
 
+  // Impostor party game — self-contained module on the /game socket namespace.
+  require('./game').setupGame(io);
+  app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
+
   function getSettings() {
     const rows = dbAll('SELECT key, value FROM settings');
     const s = {}; rows.forEach(r => s[r.key] = r.value); return s;
