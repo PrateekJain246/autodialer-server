@@ -110,6 +110,10 @@ async function main() {
   require('./game').setupGame(io);
   app.get('/game', (req, res) => res.sendFile(path.join(__dirname, 'public', 'game.html')));
 
+  // Teen Patti — dealer-controlled card table on the /teenpatti socket namespace.
+  require('./teenpatti').setupTeenPatti(io);
+  app.get(['/teenpatti', '/teenpatti/host'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'teenpatti.html')));
+
   function getSettings() {
     const rows = dbAll('SELECT key, value FROM settings');
     const s = {}; rows.forEach(r => s[r.key] = r.value); return s;
